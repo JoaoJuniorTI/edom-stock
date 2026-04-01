@@ -2,6 +2,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { TrendingDown, TrendingUp } from 'lucide-react'
+import { glass } from '@/lib/styles'
 import { SortableTable, Column } from '@/components/SortableTable'
 
 interface StockItem {
@@ -99,7 +100,7 @@ function PrevisaoInner() {
 
       {/* Filters */}
       <div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap',alignItems:'center'}}>
-        <input className="glass-input" placeholder="Buscar produto..." value={search} onChange={e=>setSearch(e.target.value)} style={{maxWidth:240}}/>
+        <input style={{...glass.input, maxWidth:240}} placeholder="Buscar produto..." value={search} onChange={e=>setSearch(e.target.value)}/>
         {(['all','critical','accelerated','ok'] as const).map(f=>(
           <button key={f} className={filter===f?'btn-outline':'btn-ghost'} onClick={()=>setFilter(f)} style={{padding:'8px 14px'}}>
             {f==='all'?'Todos':f==='critical'?'Críticos':f==='accelerated'?'Acelerado':'OK'}
@@ -107,7 +108,7 @@ function PrevisaoInner() {
         ))}
       </div>
 
-      <div className="glass-card" style={{overflow:'hidden'}}>
+      <div style={{...glass.card, overflow:'hidden'}}>
         {loading
           ? <div style={{padding:48,textAlign:'center',color:'var(--text-dim)',fontSize:14}}>Carregando…</div>
           : <SortableTable columns={columns} data={filtered} defaultSort="days_left_7" defaultDir="asc"/>}

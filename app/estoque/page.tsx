@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { Plus, Settings } from 'lucide-react'
 import { SortableTable, Column } from '@/components/SortableTable'
+import { glass } from '@/lib/styles'
 
 interface Product { id: number; name: string; brand: string }
 interface StockItem { id:number; name:string; brand:string; balance_ml:number; total_in:number; total_out:number; alert_ml:number|null; is_low:boolean }
@@ -86,23 +87,23 @@ export default function EstoquePage() {
       {msg.text && <div style={{marginBottom:16,padding:'10px 16px',background:msg.ok?'var(--success-bg)':'var(--danger-bg)',border:`1px solid ${msg.ok?'var(--success-border)':'var(--danger-border)'}`,borderRadius:10,color:msg.ok?'#1D9641':'var(--danger)',fontSize:13}}>{msg.text}</div>}
 
       {showEntry && (
-        <div className="glass-card" style={{padding:24,marginBottom:24}}>
+        <div style={{...glass.card, padding:24,marginBottom:24}}>
           <h3 style={{fontFamily:'var(--font-display)',fontSize:18,fontWeight:400,marginBottom:20}}>Registrar entrada de estoque</h3>
           <form onSubmit={handleEntry} style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:16}}>
             <div><label className="label">Produto</label>
-              <select className="glass-input" value={form.product_id} onChange={e=>setForm({...form,product_id:e.target.value})} required>
+              <select style={{...glass.input}} value={form.product_id} onChange={e=>setForm({...form,product_id:e.target.value})} required>
                 <option value="">Selecione...</option>
                 {products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
               </select></div>
             <div><label className="label">Tipo</label>
-              <select className="glass-input" value={form.type} onChange={e=>setForm({...form,type:e.target.value})}>
+              <select style={{...glass.input}} value={form.type} onChange={e=>setForm({...form,type:e.target.value})}>
                 <option value="inicial">Estoque inicial</option>
                 <option value="reposicao">Reposição</option>
               </select></div>
             <div><label className="label">Quantidade (ml)</label>
-              <input type="number" className="glass-input" placeholder="ex: 100" step="0.1" min="0.1" value={form.quantity_ml} onChange={e=>setForm({...form,quantity_ml:e.target.value})} required/></div>
+              <input type="number" style={{...glass.input}} placeholder="ex: 100" step="0.1" min="0.1" value={form.quantity_ml} onChange={e=>setForm({...form,quantity_ml:e.target.value})} required/></div>
             <div><label className="label">Nota (opcional)</label>
-              <input type="text" className="glass-input" placeholder="Observação..." value={form.note} onChange={e=>setForm({...form,note:e.target.value})}/></div>
+              <input type="text" style={{...glass.input}} placeholder="Observação..." value={form.note} onChange={e=>setForm({...form,note:e.target.value})}/></div>
             <div style={{display:'flex',alignItems:'flex-end',gap:8}}>
               <button type="submit" className="btn-gold" disabled={saving}>{saving?'Salvando...':'Registrar'}</button>
               <button type="button" className="btn-ghost" onClick={()=>setShowEntry(false)}>Cancelar</button>
@@ -112,10 +113,10 @@ export default function EstoquePage() {
       )}
 
       <div style={{marginBottom:16}}>
-        <input className="glass-input" placeholder="Buscar produto..." value={search} onChange={e=>setSearch(e.target.value)} style={{maxWidth:320}}/>
+        <input style={{...glass.input, maxWidth:320}} placeholder="Buscar produto..." value={search} onChange={e=>setSearch(e.target.value)}/>
       </div>
 
-      <div className="glass-card" style={{overflow:'hidden'}}>
+      <div style={{...glass.card, overflow:'hidden'}}>
         {loading
           ? <div style={{padding:48,textAlign:'center',color:'var(--text-dim)',fontSize:14}}>Carregando…</div>
           : <>
@@ -129,7 +130,7 @@ export default function EstoquePage() {
                       {stock.find(s=>s.id===showThreshold)?.name}
                     </strong> quando saldo ≤
                   </span>
-                  <input type="number" className="glass-input" placeholder="ml" step="0.1" value={thresholdVal} onChange={e=>setThresholdVal(e.target.value)} style={{width:90}}/>
+                  <input type="number" style={{...glass.input, width:90}} placeholder="ml" step="0.1" value={thresholdVal} onChange={e=>setThresholdVal(e.target.value)}/>
                   <span style={{fontSize:13,color:'var(--text-muted)'}}>ml</span>
                   <button className="btn-gold" style={{padding:'8px 16px'}} onClick={()=>handleThreshold(showThreshold)} disabled={saving}>Salvar</button>
                   <button className="btn-ghost" style={{padding:'8px 16px'}} onClick={()=>setShowThreshold(null)}>Cancelar</button>

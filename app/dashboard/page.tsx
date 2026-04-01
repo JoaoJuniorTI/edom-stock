@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle, Package, TrendingUp, Clock, ArrowRight } from 'lucide-react'
 import { SortableTable, Column } from '@/components/SortableTable'
+import { glass } from '@/lib/styles'
 
 interface StockItem { id:number;name:string;brand:string;balance_ml:number;is_low:boolean;days_left_30:number|null;days_left_7:number|null;daily_avg_30:number|null;daily_avg_7:number|null }
 const best=(i:StockItem)=>i.days_left_7??i.days_left_30
@@ -21,10 +22,10 @@ export default function Dashboard() {
   const accel=stock.filter(s=>s.days_left_7!==null&&s.days_left_30!==null&&s.days_left_7<s.days_left_30*0.7).length
 
   const kpis=[
-    {label:'Com estoque',       value:withStock,       icon:Package,       accent:'#B8943F', bg:'rgba(184,148,63,0.10)', route:'/estoque',            hint:'Ver estoque'},
-    {label:'Abaixo de 10 dias', value:lowItems.length, icon:AlertTriangle, accent:lowItems.length>0?'#FF3B30':'#AEAEB2', bg:lowItems.length>0?'rgba(255,59,48,0.09)':'rgba(0,0,0,0.04)', route:'/previsao?f=critical', hint:'Ver críticos'},
-    {label:'Consumo acelerado', value:accel,           icon:TrendingUp,    accent:accel>0?'#FF9F0A':'#AEAEB2', bg:accel>0?'rgba(255,159,10,0.09)':'rgba(0,0,0,0.04)', route:'/previsao?f=accelerated', hint:'Ver previsão'},
-    {label:'Sem histórico',     value:noData,          icon:Clock,         accent:noData>0?'#FF9F0A':'#AEAEB2', bg:noData>0?'rgba(255,159,10,0.09)':'rgba(0,0,0,0.04)', route:'/previsao', hint:'Ver previsão'},
+    {label:'Com estoque',       value:withStock,       icon:Package,       accent:'#B8943F', iconBg:'rgba(184,148,63,0.10)', route:'/estoque',            hint:'Ver estoque'},
+    {label:'Abaixo de 10 dias', value:lowItems.length, icon:AlertTriangle, accent:lowItems.length>0?'#FF3B30':'#AEAEB2', iconBg:lowItems.length>0?'rgba(255,59,48,0.09)':'rgba(0,0,0,0.04)', route:'/previsao?f=critical', hint:'Ver críticos'},
+    {label:'Consumo acelerado', value:accel,           icon:TrendingUp,    accent:accel>0?'#FF9F0A':'#AEAEB2', iconBg:accel>0?'rgba(255,159,10,0.09)':'rgba(0,0,0,0.04)', route:'/previsao?f=accelerated', hint:'Ver previsão'},
+    {label:'Sem histórico',     value:noData,          icon:Clock,         accent:noData>0?'#FF9F0A':'#AEAEB2', iconBg:noData>0?'rgba(255,159,10,0.09)':'rgba(0,0,0,0.04)', route:'/previsao', hint:'Ver previsão'},
   ]
 
   const columns:Column<StockItem>[]=[
@@ -40,21 +41,29 @@ export default function Dashboard() {
     <div className="fade-in">
       <div style={{marginBottom:38}}>
         <h1 style={{fontFamily:'Playfair Display,serif',fontSize:36,fontWeight:300,color:'var(--t1)',letterSpacing:'-0.02em',lineHeight:1.1}}>Dashboard</h1>
-        <p style={{color:'var(--t3)',fontSize:14.5,marginTop:8}}>Visão geral · Alerta automático abaixo de <strong style={{color:'var(--danger)',fontWeight:700}}>10 dias</strong> de estoque</p>
+        <p style={{color:'var(--t3)',fontSize:14.5,marginTop:8,fontFamily:'var(--font-ui)'}}>
+          Visão geral · Alerta automático abaixo de <strong style={{color:'var(--danger)',fontWeight:700}}>10 dias</strong> de estoque
+        </p>
       </div>
 
       {/* KPIs */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:16,marginBottom:32}}>
-        {kpis.map(({label,value,icon:Icon,accent,bg,route,hint})=>(
-          <div key={label} className="glass-kpi" onClick={()=>router.push(route)}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:20}}>
-              <span style={{fontSize:11,fontWeight:700,letterSpacing:'0.07em',textTransform:'uppercase',color:'var(--t3)',lineHeight:1.4,maxWidth:130}}>{label}</span>
-              <div style={{width:36,height:36,borderRadius:11,background:bg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,border:`1px solid ${accent}30`}}>
+        {kpis.map(({label,value,icon:Icon,accent,iconBg,route,hint})=>(
+          <div key={label}
+            style={{...glass.kpi}}
+            onClick={()=>router.push(route)}
+            onMouseEnter={e=>{const el=e.currentTarget;el.style.transform='translateY(-4px) scale(1.015)';el.style.boxShadow='0 20px 60px rgba(0,0,0,0.13), 0 1px 0 rgba(255,255,255,1) inset';el.style.background='rgba(255,255,255,0.90)'}}
+            onMouseLeave={e=>{const el=e.currentTarget;el.style.transform='';el.style.boxShadow=glass.kpi.boxShadow;el.style.background=glass.kpi.background}}>
+            {/* Top light shimmer */}
+            <div style={{position:'absolute',top:0,left:0,right:0,height:'45%',background:'linear-gradient(180deg,rgba(255,255,255,0.20) 0%,transparent 100%)',borderRadius:'28px 28px 0 0',pointerEvents:'none'}}/>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:20,position:'relative'}}>
+              <span style={{fontFamily:'var(--font-ui)',fontSize:11,fontWeight:700,letterSpacing:'0.07em',textTransform:'uppercase',color:'var(--t3)',lineHeight:1.4,maxWidth:130}}>{label}</span>
+              <div style={{width:36,height:36,borderRadius:11,background:iconBg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,border:`1px solid ${accent}25`}}>
                 <Icon size={16} style={{color:accent}} strokeWidth={2}/>
               </div>
             </div>
-            <div style={{fontFamily:'Playfair Display,serif',fontSize:46,color:accent,fontWeight:300,lineHeight:1,marginBottom:14}}>{loading?'—':value}</div>
-            <div style={{display:'flex',alignItems:'center',gap:5,fontSize:12,color:'var(--t4)',fontWeight:500}}>{hint}<ArrowRight size={11} strokeWidth={2}/></div>
+            <div style={{fontFamily:'Playfair Display,serif',fontSize:46,color:accent,fontWeight:300,lineHeight:1,marginBottom:14,position:'relative'}}>{loading?'—':value}</div>
+            <div style={{display:'flex',alignItems:'center',gap:5,fontFamily:'var(--font-ui)',fontSize:12,color:'var(--t4)',fontWeight:500,position:'relative'}}>{hint}<ArrowRight size={11} strokeWidth={2}/></div>
           </div>
         ))}
       </div>
@@ -65,7 +74,7 @@ export default function Dashboard() {
           <div style={{width:34,height:34,borderRadius:10,background:'rgba(255,59,48,0.13)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
             <AlertTriangle size={16} style={{color:'var(--danger)'}} strokeWidth={2.2}/>
           </div>
-          <span style={{fontSize:13.5,color:'#C0392B',lineHeight:1.5}}>
+          <span style={{fontFamily:'var(--font-ui)',fontSize:13.5,color:'#C0392B',lineHeight:1.5}}>
             <strong style={{fontWeight:700}}>{lowItems.length} produto{lowItems.length>1?'s':''}</strong> com menos de 10 dias —{' '}
             {lowItems.sort((a,b)=>(best(a)??999)-(best(b)??999)).slice(0,4).map(i=>i.name).join(', ')}
             {lowItems.length>4?` e +${lowItems.length-4}`:''}
@@ -76,11 +85,11 @@ export default function Dashboard() {
       {/* Table */}
       <div>
         <h2 style={{fontFamily:'Playfair Display,serif',fontSize:22,fontWeight:400,marginBottom:16,color:'var(--t1)'}}>Todos os produtos</h2>
-        <div className="glass-card" style={{overflow:'hidden'}}>
+        <div style={{...glass.card,overflow:'hidden'}}>
           {loading
-            ?<div style={{padding:56,textAlign:'center',color:'var(--t4)',fontSize:14}}>Carregando…</div>
+            ?<div style={{padding:56,textAlign:'center',color:'var(--t4)',fontFamily:'var(--font-ui)',fontSize:14}}>Carregando…</div>
             :stock.length===0
-            ?<div style={{padding:56,textAlign:'center',color:'var(--t4)',fontSize:14,lineHeight:2}}>Nenhum produto.<br/><span style={{fontSize:12.5}}>Clique em "Sincronizar CSV" na barra lateral.</span></div>
+            ?<div style={{padding:56,textAlign:'center',color:'var(--t4)',fontFamily:'var(--font-ui)',fontSize:14,lineHeight:2}}>Nenhum produto.<br/><span style={{fontSize:12.5}}>Clique em "Sincronizar CSV" na barra lateral.</span></div>
             :<SortableTable columns={columns} data={stock} defaultSort="best" defaultDir="asc"/>}
         </div>
       </div>
@@ -89,7 +98,7 @@ export default function Dashboard() {
         {[{c:'var(--danger)',l:'Crítico — menos de 10 dias'},{c:'var(--warning)',l:'Atenção — menos de 20 dias'},{c:'var(--success)',l:'OK — mais de 20 dias'}].map(({c,l})=>(
           <div key={l} style={{display:'flex',alignItems:'center',gap:8}}>
             <div style={{width:8,height:8,borderRadius:'50%',background:c,flexShrink:0}}/>
-            <span style={{fontSize:12,color:'var(--t3)',fontWeight:500}}>{l}</span>
+            <span style={{fontFamily:'var(--font-ui)',fontSize:12,color:'var(--t3)',fontWeight:500}}>{l}</span>
           </div>
         ))}
       </div>

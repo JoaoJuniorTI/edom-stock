@@ -1,8 +1,9 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Plus, ChevronDown, ChevronUp, Settings } from 'lucide-react'
+import { Plus, Settings } from 'lucide-react'
+import { SortableTable, Column } from '@/components/SortableTable'
 
-interface Product { id: number; name: string; brand: string; volumes: {volume_ml:number;price:number}[] }
+interface Product { id: number; name: string; brand: string }
 interface StockItem { id:number; name:string; brand:string; balance_ml:number; total_in:number; total_out:number; alert_ml:number|null; is_low:boolean }
 
 export default function EstoquePage() {
@@ -14,7 +15,7 @@ export default function EstoquePage() {
   const [form, setForm] = useState({ product_id:'', type:'inicial', quantity_ml:'', note:'' })
   const [thresholdVal, setThresholdVal] = useState('')
   const [saving, setSaving] = useState(false)
-  const [msg, setMsg] = useState('')
+  const [msg, setMsg] = useState({ text:'', ok:true })
   const [search, setSearch] = useState('')
 
   async function load() {
@@ -22,85 +23,86 @@ export default function EstoquePage() {
       fetch('/api/stock').then(r=>r.json()),
       fetch('/api/products').then(r=>r.json()),
     ])
-    setStock(s.stock || [])
-    setProducts(p.products || [])
-    setLoading(false)
+    setStock(s.stock||[]); setProducts(p.products||[]); setLoading(false)
   }
 
   useEffect(() => { load() }, [])
 
   async function handleEntry(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
-    const res = await fetch('/api/stock', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({...form, product_id:Number(form.product_id), quantity_ml:Number(form.quantity_ml)})
-    })
+    e.preventDefault(); setSaving(true)
+    const res = await fetch('/api/stock', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({...form, product_id:Number(form.product_id), quantity_ml:Number(form.quantity_ml)}) })
     const data = await res.json()
-    if (data.success) {
-      setMsg('Entrada registrada!'); setShowEntry(false); setForm({product_id:'',type:'inicial',quantity_ml:'',note:''})
-      await load()
-    } else { setMsg(data.error || 'Erro') }
-    setSaving(false)
-    setTimeout(() => setMsg(''), 3000)
+    if (data.success) { setMsg({text:'Entrada registrada!',ok:true}); setShowEntry(false); setForm({product_id:'',type:'inicial',quantity_ml:'',note:''}); await load() }
+    else { setMsg({text:data.error||'Erro',ok:false}) }
+    setSaving(false); setTimeout(()=>setMsg({text:'',ok:true}),3000)
   }
 
   async function handleThreshold(productId: number) {
     setSaving(true)
-    await fetch('/api/stock', {
-      method:'PATCH', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({product_id:productId, alert_ml:Number(thresholdVal)})
-    })
-    setShowThreshold(null); setThresholdVal('')
-    await load(); setSaving(false)
+    await fetch('/api/stock',{ method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({product_id:productId, alert_ml:Number(thresholdVal)}) })
+    setShowThreshold(null); setThresholdVal(''); await load(); setSaving(false)
   }
 
-  const filtered = stock.filter(s => s.name.toLowerCase().includes(search.toLowerCase()))
+  const columns: Column<StockItem>[] = [
+    {
+      key:'name', label:'Produto', sortable:true,
+      render: row => (
+        <div>
+          <div style={{fontWeight:500,fontSize:13}}>{row.name}</div>
+          <div style={{fontSize:11,color:'var(--text-dim)',marginTop:1}}>{row.brand}</div>
+        </div>
+      ),
+    },
+    { key:'balance_ml', label:'Saldo atual', sortable:true, getValue:row=>Number(row.balance_ml),
+      render:row=><span style={{fontWeight:600,color:row.balance_ml<=0?'var(--danger)':row.is_low?'var(--warning)':'var(--text)'}}>{Number(row.balance_ml).toFixed(1)} ml</span> },
+    { key:'total_in',  label:'Total entradas', sortable:true, getValue:row=>Number(row.total_in),  render:row=><span style={{color:'var(--text-muted)'}}>{Number(row.total_in).toFixed(1)} ml</span> },
+    { key:'total_out', label:'Total saídas',   sortable:true, getValue:row=>Number(row.total_out), render:row=><span style={{color:'var(--text-muted)'}}>{Number(row.total_out).toFixed(1)} ml</span> },
+    { key:'alert_ml',  label:'Limiar alerta',  sortable:true, getValue:row=>row.alert_ml,
+      render:row=>row.alert_ml ? <span style={{color:'var(--text-muted)'}}>{row.alert_ml} ml</span> : <span style={{color:'var(--text-dim)',fontSize:12}}>não definido</span> },
+    { key:'is_low', label:'Status', sortable:true, getValue:row=>row.is_low?0:1,
+      render:row=>row.is_low?<span className="badge-low">Baixo</span>:row.balance_ml<=0?<span className="badge-low">Zerado</span>:<span className="badge-ok">OK</span> },
+    { key:'actions', label:'', sortable:false,
+      render:row=>(
+        <button className="btn-ghost" style={{padding:'6px 10px',fontSize:12,display:'flex',alignItems:'center',gap:4}}
+          onClick={()=>{setShowThreshold(showThreshold===row.id?null:row.id);setThresholdVal(String(row.alert_ml||''))}}>
+          <Settings size={12}/> Limiar
+        </button>
+      ),
+    },
+  ]
+
+  const filtered = stock.filter(s=>s.name.toLowerCase().includes(search.toLowerCase()))
 
   return (
     <div className="fade-in">
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:32}}>
         <div>
-          <h1 style={{fontSize:32,fontWeight:300,color:'var(--gold)',letterSpacing:'0.02em'}}>Estoque</h1>
-          <p style={{color:'var(--text-muted)',fontSize:14,marginTop:4}}>Saldos, entradas e configurações de alerta</p>
+          <h1 style={{fontFamily:'var(--font-display)',fontSize:34,fontWeight:300,color:'var(--text)',letterSpacing:'-0.01em'}}>Estoque</h1>
+          <p style={{color:'var(--text-muted)',fontSize:14,marginTop:6}}>Saldos, entradas e configurações de alerta</p>
         </div>
-        <button className="btn-gold" onClick={()=>setShowEntry(!showEntry)}>
-          <Plus size={14} style={{display:'inline',marginRight:6}}/> Nova entrada
-        </button>
+        <button className="btn-gold" onClick={()=>setShowEntry(!showEntry)}><Plus size={14} style={{display:'inline',marginRight:6}}/>Nova entrada</button>
       </div>
 
-      {msg && <div style={{marginBottom:16,padding:'10px 16px',background:'rgba(201,168,76,0.08)',border:'1px solid var(--border-hover)',borderRadius:6,color:'var(--gold)',fontSize:13}}>{msg}</div>}
+      {msg.text && <div style={{marginBottom:16,padding:'10px 16px',background:msg.ok?'var(--success-bg)':'var(--danger-bg)',border:`1px solid ${msg.ok?'var(--success-border)':'var(--danger-border)'}`,borderRadius:10,color:msg.ok?'#1D9641':'var(--danger)',fontSize:13}}>{msg.text}</div>}
 
-      {/* Entry form */}
       {showEntry && (
         <div className="card" style={{padding:24,marginBottom:24}}>
-          <h3 style={{fontSize:16,fontWeight:400,marginBottom:20}}>Registrar entrada de estoque</h3>
+          <h3 style={{fontFamily:'var(--font-display)',fontSize:18,fontWeight:400,marginBottom:20}}>Registrar entrada de estoque</h3>
           <form onSubmit={handleEntry} style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:16}}>
-            <div>
-              <label className="label">Produto</label>
+            <div><label className="label">Produto</label>
               <select className="input" value={form.product_id} onChange={e=>setForm({...form,product_id:e.target.value})} required>
                 <option value="">Selecione...</option>
                 {products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="label">Tipo</label>
+              </select></div>
+            <div><label className="label">Tipo</label>
               <select className="input" value={form.type} onChange={e=>setForm({...form,type:e.target.value})}>
                 <option value="inicial">Estoque inicial</option>
                 <option value="reposicao">Reposição</option>
-              </select>
-            </div>
-            <div>
-              <label className="label">Quantidade (ml)</label>
-              <input type="number" className="input" placeholder="ex: 100" step="0.1" min="0.1"
-                value={form.quantity_ml} onChange={e=>setForm({...form,quantity_ml:e.target.value})} required/>
-            </div>
-            <div>
-              <label className="label">Nota (opcional)</label>
-              <input type="text" className="input" placeholder="Observação..."
-                value={form.note} onChange={e=>setForm({...form,note:e.target.value})}/>
-            </div>
+              </select></div>
+            <div><label className="label">Quantidade (ml)</label>
+              <input type="number" className="input" placeholder="ex: 100" step="0.1" min="0.1" value={form.quantity_ml} onChange={e=>setForm({...form,quantity_ml:e.target.value})} required/></div>
+            <div><label className="label">Nota (opcional)</label>
+              <input type="text" className="input" placeholder="Observação..." value={form.note} onChange={e=>setForm({...form,note:e.target.value})}/></div>
             <div style={{display:'flex',alignItems:'flex-end',gap:8}}>
               <button type="submit" className="btn-gold" disabled={saving}>{saving?'Salvando...':'Registrar'}</button>
               <button type="button" className="btn-ghost" onClick={()=>setShowEntry(false)}>Cancelar</button>
@@ -109,76 +111,33 @@ export default function EstoquePage() {
         </div>
       )}
 
-      {/* Search */}
       <div style={{marginBottom:16}}>
         <input className="input" placeholder="Buscar produto..." value={search} onChange={e=>setSearch(e.target.value)} style={{maxWidth:320}}/>
       </div>
 
-      <div className="card">
-        {loading ? (
-          <div style={{padding:40,textAlign:'center',color:'var(--text-dim)'}}>Carregando...</div>
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Produto</th>
-                  <th>Saldo atual</th>
-                  <th>Total entradas</th>
-                  <th>Total saídas</th>
-                  <th>Limiar de alerta</th>
-                  <th>Status</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(item => (
-                  <>
-                  <tr key={item.id}>
-                    <td>
-                      <div style={{fontWeight:400}}>{item.name}</div>
-                      <div style={{fontSize:11,color:'var(--text-dim)'}}>{item.brand}</div>
-                    </td>
-                    <td style={{color:item.balance_ml<=0?'var(--danger)':item.is_low?'var(--warning)':'var(--text)',fontWeight:500,fontSize:15}}>
-                      {Number(item.balance_ml).toFixed(1)} ml
-                    </td>
-                    <td style={{color:'var(--text-muted)'}}>{Number(item.total_in).toFixed(1)} ml</td>
-                    <td style={{color:'var(--text-muted)'}}>{Number(item.total_out).toFixed(1)} ml</td>
-                    <td style={{color:'var(--text-muted)'}}>
-                      {item.alert_ml ? `${item.alert_ml} ml` : <span style={{color:'var(--text-dim)'}}>não definido</span>}
-                    </td>
-                    <td>
-                      {item.is_low ? <span className="badge-low">Baixo</span>
-                       : item.balance_ml <= 0 ? <span className="badge-low">Zerado</span>
-                       : <span className="badge-ok">OK</span>}
-                    </td>
-                    <td>
-                      <button className="btn-ghost" style={{padding:'6px 10px',fontSize:12,display:'flex',alignItems:'center',gap:4}}
-                        onClick={()=>{setShowThreshold(showThreshold===item.id?null:item.id);setThresholdVal(String(item.alert_ml||''))}}>
-                        <Settings size={12}/> Limiar
-                      </button>
-                    </td>
-                  </tr>
-                  {showThreshold===item.id && (
-                    <tr key={`t-${item.id}`}>
-                      <td colSpan={7} style={{background:'var(--bg3)',padding:'12px 16px'}}>
-                        <div style={{display:'flex',alignItems:'center',gap:12}}>
-                          <span style={{fontSize:13,color:'var(--text-muted)'}}>Alertar quando saldo ≤</span>
-                          <input type="number" className="input" placeholder="ml" step="0.1" value={thresholdVal}
-                            onChange={e=>setThresholdVal(e.target.value)} style={{width:100}}/>
-                          <span style={{fontSize:13,color:'var(--text-muted)'}}>ml</span>
-                          <button className="btn-gold" style={{padding:'8px 16px'}} onClick={()=>handleThreshold(item.id)} disabled={saving}>Salvar</button>
-                          <button className="btn-ghost" style={{padding:'8px 16px'}} onClick={()=>setShowThreshold(null)}>Cancelar</button>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                  </>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <div className="card" style={{overflow:'hidden'}}>
+        {loading
+          ? <div style={{padding:48,textAlign:'center',color:'var(--text-dim)',fontSize:14}}>Carregando…</div>
+          : <>
+            <SortableTable columns={columns} data={filtered} defaultSort="balance_ml" defaultDir="asc"/>
+            {/* Inline threshold editor */}
+            {showThreshold!==null && (
+              <div style={{padding:'14px 20px',background:'rgba(168,132,44,0.04)',borderTop:'1px solid var(--border)'}}>
+                <div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+                  <span style={{fontSize:13,color:'var(--text-muted)'}}>
+                    Alertar <strong style={{color:'var(--text)'}}>
+                      {stock.find(s=>s.id===showThreshold)?.name}
+                    </strong> quando saldo ≤
+                  </span>
+                  <input type="number" className="input" placeholder="ml" step="0.1" value={thresholdVal} onChange={e=>setThresholdVal(e.target.value)} style={{width:90}}/>
+                  <span style={{fontSize:13,color:'var(--text-muted)'}}>ml</span>
+                  <button className="btn-gold" style={{padding:'8px 16px'}} onClick={()=>handleThreshold(showThreshold)} disabled={saving}>Salvar</button>
+                  <button className="btn-ghost" style={{padding:'8px 16px'}} onClick={()=>setShowThreshold(null)}>Cancelar</button>
+                </div>
+              </div>
+            )}
+          </>
+        }
       </div>
     </div>
   )

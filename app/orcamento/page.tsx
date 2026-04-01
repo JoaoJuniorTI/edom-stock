@@ -117,23 +117,23 @@ ${note?`<div class="note">${note}</div>`:''}
         <div style={{display:'flex',flexDirection:'column',gap:18}}>
 
           {/* Client */}
-          <div className="card" style={{padding:26}}>
+          <div className="glass-card" style={{padding:26}}>
             <h3 style={{marginBottom:18,display:'flex',alignItems:'center',gap:8}}><User size={13} strokeWidth={2}/> Dados do cliente</h3>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
-              <div><label className="label">Nome *</label><input className="input" placeholder="Nome do cliente" value={clientName} onChange={e=>setClientName(e.target.value)}/></div>
-              <div><label className="label">Contato</label><input className="input" placeholder="WhatsApp, e-mail…" value={clientContact} onChange={e=>setClientContact(e.target.value)}/></div>
+              <div><label className="label">Nome *</label><input className="glass-input" placeholder="Nome do cliente" value={clientName} onChange={e=>setClientName(e.target.value)}/></div>
+              <div><label className="label">Contato</label><input className="glass-input" placeholder="WhatsApp, e-mail…" value={clientContact} onChange={e=>setClientContact(e.target.value)}/></div>
             </div>
           </div>
 
           {/* Add product */}
-          <div className="card" style={{padding:26}}>
+          <div className="glass-card" style={{padding:26}}>
             <h3 style={{marginBottom:18}}>Adicionar produto</h3>
             <div style={{display:'flex',gap:12,flexWrap:'wrap',alignItems:'flex-end'}}>
               <div style={{flex:2,minWidth:220,position:'relative'}}>
                 <label className="label">Produto</label>
                 <div style={{position:'relative'}}>
                   <Search size={14} style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:'var(--t4)',pointerEvents:'none'}}/>
-                  <input ref={searchRef} className="input" placeholder="Buscar perfume…" value={search}
+                  <input ref={searchRef} className="glass-input" placeholder="Buscar perfume…" value={search}
                     onChange={e=>{setSearch(e.target.value);setShowSugg(true);setSelProduct(null)}}
                     onFocus={()=>setShowSugg(true)} onBlur={()=>setTimeout(()=>setShowSugg(false),180)}
                     style={{paddingLeft:36}}/>
@@ -154,7 +154,7 @@ ${note?`<div class="note">${note}</div>`:''}
               </div>
               <div style={{minWidth:175}}>
                 <label className="label">Volumetria</label>
-                <select className="input" value={selVolume} onChange={e=>setSelVolume(e.target.value)} disabled={!selProduct}>
+                <select className="glass-input" value={selVolume} onChange={e=>setSelVolume(e.target.value)} disabled={!selProduct}>
                   <option value="">Selecione…</option>
                   {selProduct?.volumes.map(v=>(
                     <option key={v.volume_ml} value={v.volume_ml}>{v.volume_ml}ml — R$ {Number(v.price).toFixed(2).replace('.',',')}</option>
@@ -169,7 +169,7 @@ ${note?`<div class="note">${note}</div>`:''}
 
           {/* Items list */}
           {items.length>0?(
-            <div className="card" style={{overflow:'hidden'}}>
+            <div className="glass-card" style={{overflow:'hidden'}}>
               <table>
                 <thead><tr><th style={{width:32}}>#</th><th>Produto</th><th>Volume</th><th>Preço</th><th style={{width:40}}></th></tr></thead>
                 <tbody>
@@ -196,7 +196,7 @@ ${note?`<div class="note">${note}</div>`:''}
 
         {/* RIGHT — Resumo */}
         <div style={{position:'sticky',top:24}}>
-          <div className="card" style={{padding:26}}>
+          <div className="glass-card" style={{padding:26}}>
             <h3 style={{marginBottom:22}}>Resumo</h3>
 
             <div style={{marginBottom:16}}>
@@ -213,7 +213,7 @@ ${note?`<div class="note">${note}</div>`:''}
             </div>
 
             {/* Frete */}
-            <div className="card" style={{padding:16,marginBottom:16,background:'rgba(0,0,0,0.025)',boxShadow:'none',borderColor:'var(--b2)'}}>
+            <div className="glass-card" style={{padding:16,marginBottom:16,background:'rgba(0,0,0,0.025)',boxShadow:'none',borderColor:'var(--b2)'}}>
               <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:14}}>
                 <Truck size={13} style={{color:'var(--t3)'}} strokeWidth={2}/>
                 <span style={{fontSize:11,fontWeight:700,letterSpacing:'0.07em',textTransform:'uppercase',color:'var(--t3)'}}>Frete</span>
@@ -221,11 +221,11 @@ ${note?`<div class="note">${note}</div>`:''}
               <div style={{display:'flex',flexDirection:'column',gap:10}}>
                 <div>
                   <label className="label">Transportadora</label>
-                  <input className="input" placeholder="Ex: Correios, Jadlog…" value={freteTransp} onChange={e=>setFreteTransp(e.target.value)}/>
+                  <input className="glass-input" placeholder="Ex: Correios, Jadlog…" value={freteTransp} onChange={e=>setFreteTransp(e.target.value)}/>
                 </div>
                 <div>
                   <label className="label">Valor (R$)</label>
-                  <input type="number" className="input" placeholder="0,00" step="0.01" min="0" value={freteValor} onChange={e=>setFreteValor(e.target.value)}/>
+                  <input type="number" className="glass-input" placeholder="0,00" step="0.01" min="0" value={freteValor} onChange={e=>setFreteValor(e.target.value)}/>
                 </div>
               </div>
             </div>
@@ -238,7 +238,7 @@ ${note?`<div class="note">${note}</div>`:''}
 
             <div style={{marginBottom:18}}>
               <label className="label">Observação (opcional)</label>
-              <textarea className="input" rows={3} placeholder="Ex: válido por 7 dias…" value={note} onChange={e=>setNote(e.target.value)} style={{resize:'vertical',fontFamily:'var(--font-ui)'}}/>
+              <textarea className="glass-input" rows={3} placeholder="Ex: válido por 7 dias…" value={note} onChange={e=>setNote(e.target.value)} style={{resize:'vertical',fontFamily:'var(--font-ui)'}}/>
             </div>
 
             <button className="btn-gold" onClick={generatePDF} disabled={items.length===0||!clientName} style={{width:'100%',padding:'13px 20px',fontSize:14}}>

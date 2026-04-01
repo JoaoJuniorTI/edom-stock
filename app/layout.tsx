@@ -15,7 +15,7 @@ const nav = [
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router   = useRouter()
-  const [col, setCol]       = useState(false)
+  const [col, setCol]         = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [syncMsg, setSyncMsg] = useState('')
   const [syncOk, setSyncOk]   = useState(true)
@@ -36,26 +36,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <title>Edom Decants · Estoque</title>
         <meta name="viewport" content="width=device-width,initial-scale=1"/>
-        <meta name="theme-color" content="#F2F2F7"/>
       </head>
       <body style={{display:'flex',minHeight:'100vh'}}>
-
-        {/* ── SIDEBAR ── */}
-        <aside className="sidebar" style={{
-          width: col?64:228, minHeight:'100vh', flexShrink:0,
+        <aside className="glass-sidebar" style={{
+          width:col?64:228, minHeight:'100vh', flexShrink:0,
           display:'flex', flexDirection:'column',
           position:'sticky', top:0, height:'100vh', overflow:'hidden',
           transition:'width 0.28s cubic-bezier(0.16,1,0.3,1)',
         }}>
           {/* Logo */}
-          <div style={{padding: col?'22px 0':'26px 20px 22px', borderBottom:'1px solid rgba(0,0,0,0.06)', textAlign:col?'center':'left', transition:'padding 0.28s'}}>
+          <div style={{padding:col?'22px 0':'26px 20px 22px', textAlign:col?'center':'left', borderBottom:'1px solid rgba(0,0,0,0.07)', transition:'padding 0.28s'}}>
             {!col ? (
               <div>
                 <div style={{fontFamily:'Playfair Display,serif',fontSize:22,color:'var(--gold)',letterSpacing:'0.05em',fontWeight:400,lineHeight:1}}>EDOM</div>
-                <div style={{fontFamily:'var(--font-ui)',fontSize:9.5,letterSpacing:'0.18em',textTransform:'uppercase',color:'var(--t4)',marginTop:3,fontWeight:600}}>Decants · Estoque</div>
+                <div style={{fontSize:9.5,letterSpacing:'0.18em',textTransform:'uppercase',color:'var(--t4)',marginTop:3,fontWeight:700}}>Decants · Estoque</div>
               </div>
             ) : (
-              <div style={{fontFamily:'Playfair Display,serif',fontSize:20,color:'var(--gold)'}}>E</div>
+              <div style={{fontFamily:'Playfair Display,serif',fontSize:20,color:'var(--gold)',textAlign:'center'}}>E</div>
             )}
           </div>
 
@@ -68,39 +65,36 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 title={col?label:undefined}
                 style={{justifyContent:col?'center':'flex-start',padding:col?'10px 0':'9px 12px'}}>
                 <Icon size={17} strokeWidth={1.7}/>
-                {!col && <span>{label}</span>}
+                {!col&&<span style={{marginLeft:2}}>{label}</span>}
               </button>
             ))}
           </nav>
 
           {/* Footer */}
-          <div style={{padding:'10px 8px 18px',borderTop:'1px solid rgba(0,0,0,0.06)'}}>
-            {!col && syncMsg && (
+          <div style={{padding:'10px 8px 18px',borderTop:'1px solid rgba(0,0,0,0.07)'}}>
+            {!col&&syncMsg&&(
               <div style={{
-                fontSize:11.5, fontWeight:500,
+                fontSize:11.5, fontWeight:500, marginBottom:8,
                 color:syncOk?'var(--success-dark)':'var(--danger)',
                 background:syncOk?'var(--success-bg)':'var(--danger-bg)',
                 border:`1px solid ${syncOk?'var(--success-border)':'var(--danger-border)'}`,
-                borderRadius:10, padding:'7px 11px', marginBottom:8, lineHeight:1.4,
+                borderRadius:10, padding:'7px 11px', lineHeight:1.4,
               }}>{syncMsg}</div>
             )}
             <button className="sidebar-link" onClick={handleSync} disabled={syncing}
               title={col?'Sincronizar CSV':undefined}
-              style={{justifyContent:col?'center':'flex-start',opacity:syncing?.65:1}}>
+              style={{justifyContent:col?'center':'flex-start',opacity:syncing?0.65:1}}>
               {syncing
-                ? <Loader2 size={16} strokeWidth={1.7} style={{animation:'spin 0.8s linear infinite'}}/>
+                ? <Loader2 size={16} strokeWidth={1.7} className="spin"/>
                 : <RefreshCw size={16} strokeWidth={1.7}/>}
-              {!col&&<span>{syncing?'Sincronizando…':'Sincronizar CSV'}</span>}
+              {!col&&<span style={{marginLeft:2}}>{syncing?'Sincronizando…':'Sincronizar CSV'}</span>}
             </button>
-            <button className="sidebar-link" onClick={()=>setCol(!col)}
-              title={col?'Expandir':undefined}
-              style={{justifyContent:col?'center':'flex-start',marginTop:2}}>
-              {col?<ChevronRight size={16} strokeWidth={1.7}/>:<><ChevronLeft size={16} strokeWidth={1.7}/><span>Recolher</span></>}
+            <button className="sidebar-link" onClick={()=>setCol(!col)} style={{justifyContent:col?'center':'flex-start',marginTop:2}}>
+              {col?<ChevronRight size={16} strokeWidth={1.7}/>:<><ChevronLeft size={16} strokeWidth={1.7}/><span style={{marginLeft:2}}>Recolher</span></>}
             </button>
           </div>
         </aside>
 
-        {/* ── MAIN ── */}
         <main style={{flex:1,padding:'40px 44px',overflowY:'auto',maxWidth:'100%',minHeight:'100vh'}}>
           {children}
         </main>

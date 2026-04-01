@@ -184,7 +184,7 @@ ${alerts.length > 0 ? `
       </div>
 
       {/* Add item */}
-      <div className="card" style={{ padding: 24, marginBottom: 24 }}>
+      <div className="glass-card" style={{ padding: 24, marginBottom: 24 }}>
         <h3 style={{ fontSize: 15, fontWeight: 400, marginBottom: 18, color: 'var(--text-muted)' }}>Adicionar item</h3>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           {/* Product search */}
@@ -192,7 +192,7 @@ ${alerts.length > 0 ? `
             <label className="label">Produto</label>
             <div style={{ position: 'relative' }}>
               <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
-              <input ref={searchRef} className="input" placeholder="Buscar produto..." value={search}
+              <input ref={searchRef} className="glass-input" placeholder="Buscar produto..." value={search}
                 onChange={e => { setSearch(e.target.value); setShowSugg(true); setSelectedProduct(null) }}
                 onFocus={() => setShowSugg(true)}
                 onBlur={() => setTimeout(() => setShowSugg(false), 200)}
@@ -216,7 +216,7 @@ ${alerts.length > 0 ? `
           {/* Volume */}
           <div style={{ minWidth: 120 }}>
             <label className="label">Volume</label>
-            <select className="input" value={volume} onChange={e => setVolume(e.target.value)}>
+            <select className="glass-input" value={volume} onChange={e => setVolume(e.target.value)}>
               <option value="">Selecione</option>
               {[1, 2, 3, 5].map(v => <option key={v} value={v}>{v} ml</option>)}
             </select>
@@ -225,7 +225,7 @@ ${alerts.length > 0 ? `
           {/* Channel */}
           <div style={{ minWidth: 160 }}>
             <label className="label">Canal</label>
-            <select className="input" value={channelId} onChange={e => setChannelId(e.target.value)}>
+            <select className="glass-input" value={channelId} onChange={e => setChannelId(e.target.value)}>
               <option value="">Canal...</option>
               {channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
@@ -240,7 +240,7 @@ ${alerts.length > 0 ? `
       {/* Item list */}
       {items.length > 0 ? (
         <div style={{ marginBottom: 24 }}>
-          <div className="card">
+          <div className="glass-card">
             <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>{items.length} {items.length === 1 ? 'item' : 'itens'} na lista</span>
             </div>

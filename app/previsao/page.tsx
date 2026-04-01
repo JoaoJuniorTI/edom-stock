@@ -99,7 +99,7 @@ function PrevisaoInner() {
 
       {/* Filters */}
       <div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap',alignItems:'center'}}>
-        <input className="input" placeholder="Buscar produto..." value={search} onChange={e=>setSearch(e.target.value)} style={{maxWidth:240}}/>
+        <input className="glass-input" placeholder="Buscar produto..." value={search} onChange={e=>setSearch(e.target.value)} style={{maxWidth:240}}/>
         {(['all','critical','accelerated','ok'] as const).map(f=>(
           <button key={f} className={filter===f?'btn-outline':'btn-ghost'} onClick={()=>setFilter(f)} style={{padding:'8px 14px'}}>
             {f==='all'?'Todos':f==='critical'?'Críticos':f==='accelerated'?'Acelerado':'OK'}
@@ -107,7 +107,7 @@ function PrevisaoInner() {
         ))}
       </div>
 
-      <div className="card" style={{overflow:'hidden'}}>
+      <div className="glass-card" style={{overflow:'hidden'}}>
         {loading
           ? <div style={{padding:48,textAlign:'center',color:'var(--text-dim)',fontSize:14}}>Carregando…</div>
           : <SortableTable columns={columns} data={filtered} defaultSort="days_left_7" defaultDir="asc"/>}

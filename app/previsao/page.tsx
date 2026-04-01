@@ -11,7 +11,7 @@ interface StockItem {
 
 function DaysBar({ days }: { days: number | null }) {
   if (days === null) return <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>sem dados</span>
-  const color = days < 7 ? 'var(--danger)' : days < 14 ? 'var(--warning)' : 'var(--success)'
+  const color = days < 10 ? 'var(--danger)' : days < 20 ? 'var(--warning)' : 'var(--success)'
   const width = Math.min(100, (days / 60) * 100)
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -39,7 +39,8 @@ export default function PrevisaoPage() {
   const filtered = stock
     .filter(s => s.name.toLowerCase().includes(search.toLowerCase()))
     .filter(s => {
-      if (filter === 'critical') return s.days_left_7 !== null && s.days_left_7 < 7
+      const best = s.days_left_7 ?? s.days_left_30
+      if (filter === 'critical') return best !== null && best < 10
       if (filter === 'low') return s.is_low
       if (filter === 'ok') return !s.is_low && s.balance_ml > 0
       return true
@@ -50,7 +51,10 @@ export default function PrevisaoPage() {
       return da - db
     })
 
-  const critical = stock.filter(s => s.days_left_7 !== null && s.days_left_7 < 7)
+  const critical = stock.filter(s => {
+    const best = s.days_left_7 ?? s.days_left_30
+    return best !== null && best < 10
+  })
   const accelerated = stock.filter(s =>
     s.days_left_7 !== null && s.days_left_30 !== null && s.days_left_7 < s.days_left_30 * 0.6
   )
@@ -67,7 +71,7 @@ export default function PrevisaoPage() {
       {/* Summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, marginBottom: 32 }}>
         <div className="card" style={{ padding: 20 }}>
-          <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8 }}>Críticos (menos de 7d)</div>
+          <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8 }}>Críticos (menos de 10d)</div>
           <div style={{ fontSize: 36, fontFamily: 'Cormorant Garamond, serif', color: critical.length > 0 ? 'var(--danger)' : 'var(--text-dim)' }}>{critical.length}</div>
         </div>
         <div className="card" style={{ padding: 20 }}>
@@ -164,9 +168,9 @@ export default function PrevisaoPage() {
       {/* Legend */}
       <div style={{ marginTop: 20, display: 'flex', gap: 20, flexWrap: 'wrap' }}>
         {[
-          { color: 'var(--danger)', label: 'Menos de 7 dias' },
-          { color: 'var(--warning)', label: '7 a 14 dias' },
-          { color: 'var(--success)', label: 'Mais de 14 dias' },
+        { color: 'var(--danger)', label: 'Menos de 10 dias' },
+          { color: 'var(--warning)', label: '10 a 20 dias' },
+          { color: 'var(--success)', label: 'Mais de 20 dias' },
         ].map(({ color, label }) => (
           <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ width: 24, height: 4, background: color, borderRadius: 2 }} />

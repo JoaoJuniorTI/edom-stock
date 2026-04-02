@@ -1,7 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,300;0,400;0,500;1,300&display=swap');
 @import "tailwindcss";
 
-/* ── CSS VARIABLES ── */
 :root {
   --gold:           #B8943F;
   --gold-vivid:     #D4A843;
@@ -23,15 +22,11 @@
   --t3: #6C6C70;
   --t4: #AEAEB2;
   --t5: #C7C7CC;
-  --page-bg: #F2F2F7;
-  --b1: rgba(255,255,255,0.92);
-  --b2: rgba(0,0,0,0.07);
-  --b3: rgba(0,0,0,0.12);
+  --page-bg: #EEEEF3;
   --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
   --font-display: 'Playfair Display', Georgia, serif;
 }
 
-/* ── BASE ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
@@ -44,117 +39,73 @@ html, body {
   min-height: 100vh;
 }
 
-body::before {
-  content: '';
-  position: fixed; inset: 0; z-index: -2; pointer-events: none;
-  background:
-    radial-gradient(ellipse 60% 40% at 10% 0%, rgba(184,148,63,0.10) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 60% at 90% 100%, rgba(48,209,88,0.06) 0%, transparent 55%),
-    linear-gradient(160deg, #F2F2F7 0%, #EBEBF0 100%);
+/* Rich page background */
+body {
+  background-image:
+    radial-gradient(ellipse 55% 35% at 8% 2%,  rgba(184,148,63,0.12) 0%, transparent 65%),
+    radial-gradient(ellipse 45% 55% at 92% 98%, rgba(48,209,88,0.07)  0%, transparent 60%),
+    radial-gradient(ellipse 70% 70% at 50% 50%, rgba(255,255,255,0.4)  0%, transparent 100%);
 }
 
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.14); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 3px; }
 
 /* ── SIDEBAR LINKS ── */
 .sidebar-link {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
-  border-radius: 8px;
-  font-family: var(--font-ui);
-  font-size: 13.5px;
-  font-weight: 400;
-  color: var(--t3);
-  cursor: pointer;
-  border: none;
-  background: transparent;
-  width: 100%;
-  transition: all 0.14s ease;
-  text-align: left;
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: 8px;
+  font-family: var(--font-ui); font-size: 13.5px; font-weight: 400;
+  color: var(--t3); cursor: pointer; border: none;
+  background: transparent; width: 100%;
+  transition: all 0.14s ease; text-align: left;
 }
 .sidebar-link:hover { color: var(--t1); background: rgba(0,0,0,0.055); }
 .sidebar-link.active {
-  color: var(--gold);
-  background: var(--gold-bg);
-  font-weight: 600;
+  color: var(--gold); background: var(--gold-bg); font-weight: 600;
   box-shadow: inset 0 0 0 1px var(--gold-border);
 }
 
 /* ── BUTTONS ── */
 .btn-gold {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  background: linear-gradient(160deg, #D4A843 0%, #A8772C 100%);
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  background: linear-gradient(155deg, #D4A843 0%, #A8772C 100%);
   color: rgba(255,255,255,0.97);
-  font-family: var(--font-ui);
-  font-weight: 600;
-  font-size: 13px;
-  padding: 11px 22px;
-  border-radius: 12px;
-  border: none;
-  cursor: pointer;
-  box-shadow: 0 3px 14px rgba(168,119,44,0.40), 0 1px 0 rgba(255,255,255,0.25) inset;
-  transition: all 0.2s ease;
-  white-space: nowrap;
+  font-family: var(--font-ui); font-weight: 600; font-size: 13px;
+  padding: 11px 22px; border-radius: 12px; border: none; cursor: pointer;
+  box-shadow: 0 3px 14px rgba(168,119,44,0.42), 0 1px 0 rgba(255,220,120,0.35) inset, 0 -1px 0 rgba(0,0,0,0.15) inset;
+  transition: all 0.2s ease; white-space: nowrap;
 }
-.btn-gold:hover { transform: translateY(-2px); box-shadow: 0 7px 24px rgba(168,119,44,0.50); }
+.btn-gold:hover { transform: translateY(-2px); box-shadow: 0 7px 24px rgba(168,119,44,0.52), 0 1px 0 rgba(255,220,120,0.35) inset; }
 .btn-gold:active { transform: translateY(0); }
 .btn-gold:disabled { opacity: 0.42; cursor: not-allowed; transform: none; }
 
 .btn-outline {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(255,255,255,0.65);
-  color: var(--gold);
-  border: 1px solid var(--gold-border);
-  font-family: var(--font-ui);
-  font-size: 13px;
-  font-weight: 500;
-  padding: 10px 18px;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.18s ease;
-  white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.85);
+  color: var(--gold); border: 1px solid var(--gold-border);
+  font-family: var(--font-ui); font-size: 13px; font-weight: 500;
+  padding: 10px 18px; border-radius: 12px; cursor: pointer;
+  transition: all 0.18s ease; white-space: nowrap;
 }
 .btn-outline:hover { background: var(--gold-bg); border-color: var(--gold); transform: translateY(-1px); }
 .btn-outline.active { background: var(--gold-bg); border-color: var(--gold); font-weight: 600; }
 
 .btn-ghost {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(0,0,0,0.04);
-  color: var(--t3);
-  border: 1px solid rgba(0,0,0,0.07);
-  font-family: var(--font-ui);
-  font-size: 13px;
-  font-weight: 400;
-  padding: 8px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.14s ease;
-  white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(0,0,0,0.04); color: var(--t3); border: 1px solid rgba(0,0,0,0.08);
+  font-family: var(--font-ui); font-size: 13px; font-weight: 400;
+  padding: 8px 14px; border-radius: 8px; cursor: pointer;
+  transition: all 0.14s ease; white-space: nowrap;
 }
 .btn-ghost:hover { background: rgba(0,0,0,0.07); color: var(--t1); }
 
 /* ── LABEL / BADGES ── */
 .label {
-  font-family: var(--font-ui);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--t3);
-  display: block;
-  margin-bottom: 7px;
+  font-family: var(--font-ui); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.07em; text-transform: uppercase; color: var(--t3);
+  display: block; margin-bottom: 7px;
 }
-
 .badge-low  { display: inline-block; background: var(--danger-bg);  color: var(--danger);       border: 1px solid var(--danger-border);  font-family: var(--font-ui); font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 4px 10px; border-radius: 20px; }
 .badge-ok   { display: inline-block; background: var(--success-bg); color: var(--success-dark); border: 1px solid var(--success-border); font-family: var(--font-ui); font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 4px 10px; border-radius: 20px; }
 .badge-warn { display: inline-block; background: var(--warning-bg); color: #C06800;             border: 1px solid var(--warning-border); font-family: var(--font-ui); font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 4px 10px; border-radius: 20px; }
@@ -163,18 +114,10 @@ body::before {
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
 th {
-  font-family: var(--font-ui);
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--t4);
-  text-align: left;
-  padding: 12px 20px;
-  border-bottom: 1px solid rgba(0,0,0,0.07);
-  background: rgba(0,0,0,0.018);
-  white-space: nowrap;
-  user-select: none;
+  font-family: var(--font-ui); font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--t4);
+  text-align: left; padding: 12px 20px; border-bottom: 1px solid rgba(0,0,0,0.07);
+  background: rgba(0,0,0,0.015); white-space: nowrap; user-select: none;
 }
 th.sortable { cursor: pointer; transition: color 0.14s, background 0.14s; }
 th.sortable:hover { color: var(--gold); background: rgba(184,148,63,0.05); }
@@ -182,12 +125,8 @@ th.sort-asc, th.sort-desc { color: var(--gold); background: rgba(184,148,63,0.06
 .sort-icon { display: inline-block; margin-left: 5px; font-size: 9px; opacity: 0.5; }
 th.sort-asc .sort-icon, th.sort-desc .sort-icon { opacity: 1; }
 td {
-  font-family: var(--font-ui);
-  font-size: 13.5px;
-  color: var(--t1);
-  padding: 14px 20px;
-  border-bottom: 1px solid rgba(0,0,0,0.045);
-  vertical-align: middle;
+  font-family: var(--font-ui); font-size: 13.5px; color: var(--t1);
+  padding: 14px 20px; border-bottom: 1px solid rgba(0,0,0,0.045); vertical-align: middle;
 }
 tr:last-child td { border-bottom: none; }
 tbody tr { transition: background 0.1s; }
@@ -195,12 +134,9 @@ tbody tr:hover td { background: rgba(184,148,63,0.04); }
 
 /* ── MISC ── */
 .gold-line { height: 1px; background: linear-gradient(90deg, transparent, var(--gold-soft), transparent); opacity: 0.4; }
-
 @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
 .fade-in { animation: fadeUp 0.36s cubic-bezier(0.16,1,0.3,1) forwards; }
-
 @keyframes shimmer { 0%,100% { opacity: .5; } 50% { opacity: 1; } }
 .pulse { animation: shimmer 1.8s ease-in-out infinite; }
-
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin 0.8s linear infinite; }

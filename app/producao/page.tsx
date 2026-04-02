@@ -9,6 +9,7 @@ interface Item { product_id: number; product_name: string; volume_ml: number; ch
 interface LowAlert { name: string; balance_ml: number; alert_ml: number }
 
 const VOLUMES = [1, 2, 3, 5]
+const STORAGE_KEY = 'producao_lista'
 
 export default function ProducaoPage() {
   const [products, setProducts]     = useState<Product[]>([])
@@ -28,12 +29,30 @@ export default function ProducaoPage() {
   const volumeRef  = useRef<HTMLSelectElement>(null)
   const channelRef = useRef<HTMLSelectElement>(null)
   const addBtnRef  = useRef<HTMLButtonElement>(null)
-  // Track if blur was caused by Tab (to avoid hiding dropdown prematurely)
-  const tabbing    = useRef(false)
 
   const suggs = products.filter(p =>
     search.length > 0 && p.name.toLowerCase().includes(search.toLowerCase())
   ).slice(0, 10)
+
+  // ── Carregar lista salva ao montar ──────────────────────────
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setItems(parsed)
+        }
+      }
+    } catch {}
+  }, [])
+
+  // ── Salvar lista no localStorage sempre que mudar ───────────
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+    } catch {}
+  }, [items])
 
   useEffect(() => {
     Promise.all([
@@ -52,7 +71,6 @@ export default function ProducaoPage() {
     setSearch(p.name)
     setShowSugg(false)
     setHiIdx(-1)
-    // Move focus to volume immediately
     requestAnimationFrame(() => volumeRef.current?.focus())
   }
 
@@ -73,12 +91,10 @@ export default function ProducaoPage() {
   // ── Keyboard: search input ──────────────────────────────────
   function onSearchKey(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Tab') {
-      // If dropdown open, select highlighted (or first) then let Tab move naturally
       if (showSugg && suggs.length > 0) {
         e.preventDefault()
         selectProduct(suggs[hiIdx >= 0 ? hiIdx : 0])
       }
-      // If no dropdown, Tab moves naturally to volume
       return
     }
     if (e.key === 'ArrowDown') {
@@ -98,14 +114,9 @@ export default function ProducaoPage() {
   }
 
   function onSearchBlur() {
-    // Delay so mousedown on dropdown item fires first
     setTimeout(() => setShowSugg(false), 160)
   }
 
-  // ── Keyboard: volume select ──────────────────────────────────
-  // ↑↓ works natively on <select>
-  // Tab moves to channel naturally
-  // Enter moves focus to channel
   function onVolumeKey(e: React.KeyboardEvent<HTMLSelectElement>) {
     if (e.key === 'Enter') {
       e.preventDefault()
@@ -113,10 +124,6 @@ export default function ProducaoPage() {
     }
   }
 
-  // ── Keyboard: channel select ──────────────────────────────────
-  // ↑↓ works natively on <select>
-  // Tab moves to button naturally
-  // Enter moves focus to add button
   function onChannelKey(e: React.KeyboardEvent<HTMLSelectElement>) {
     if (e.key === 'Enter') {
       e.preventDefault()
@@ -124,7 +131,6 @@ export default function ProducaoPage() {
     }
   }
 
-  // ── Keyboard: add button ──────────────────────────────────────
   function onAddBtnKey(e: React.KeyboardEvent<HTMLButtonElement>) {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
@@ -142,6 +148,14 @@ export default function ProducaoPage() {
     const data = await res.json()
     if (data.success) { setLowAlerts(data.lowStock || []); setDone(true); generatePDF(items, data.lowStock || []) }
     setSaving(false)
+  }
+
+  // ── Fechar lista: limpa localStorage e estado ───────────────
+  function closeList() {
+    localStorage.removeItem(STORAGE_KEY)
+    setDone(false)
+    setItems([])
+    setLowAlerts([])
   }
 
   function generatePDF(list: Item[], alerts: LowAlert[]) {
@@ -174,19 +188,32 @@ export default function ProducaoPage() {
           ))}
         </div>
       )}
-      <button className="btn-gold" onClick={() => { setDone(false); setItems([]) }}>Nova lista</button>
+      <button className="btn-gold" onClick={closeList}>Fechar lista</button>
     </div>
   )
 
   return (
     <div className="fade-in">
-      <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 34, fontWeight: 300, letterSpacing: '-0.02em', lineHeight: 1.15, color: 'var(--t1)' }}>
-          Lista de produção
-        </h1>
-        <p style={{ color: 'var(--t3)', fontSize: 14, marginTop: 6, fontWeight: 400 }}>
-          Lance os itens vendidos no dia e gere o PDF de produção
-        </p>
+      <div style={{ marginBottom: 32, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 34, fontWeight: 300, letterSpacing: '-0.02em', lineHeight: 1.15, color: 'var(--t1)' }}>
+            Lista de produção
+          </h1>
+          <p style={{ color: 'var(--t3)', fontSize: 14, marginTop: 6, fontWeight: 400 }}>
+            Lance os itens vendidos no dia e gere o PDF de produção
+          </p>
+        </div>
+        {/* Badge indicando lista em aberto */}
+        {items.length > 0 && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            background: 'var(--gold-bg)', border: '1px solid var(--gold-border)',
+            borderRadius: 20, padding: '5px 12px', fontSize: 12, color: 'var(--gold)', fontWeight: 500,
+          }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--gold)', display: 'inline-block' }}/>
+            Lista em aberto · {items.length} {items.length === 1 ? 'item' : 'itens'}
+          </div>
+        )}
       </div>
 
       {/* ── ADD ITEM ── */}
@@ -326,6 +353,9 @@ export default function ProducaoPage() {
             <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--t2)' }}>
                 {items.length} {items.length === 1 ? 'item' : 'itens'}
+              </span>
+              <span style={{ fontSize: 11.5, color: 'var(--t4)' }}>
+                Lista salva automaticamente
               </span>
             </div>
             <table>

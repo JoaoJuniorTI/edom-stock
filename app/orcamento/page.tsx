@@ -139,7 +139,7 @@ ${note?`<div class="note">${note}</div>`:''}
                     onFocus={()=>setShowSugg(true)} onBlur={()=>setTimeout(()=>setShowSugg(false),180)}/>
                 </div>
                 {showSugg&&suggs.length>0&&(
-                  <div style={{position:'absolute',top:'calc(100% + 4px)',left:0,right:0,zIndex:50,background:'rgba(255,255,255,0.97)',backdropFilter:'blur(24px)',border:'1px solid var(--b1)',borderRadius:14,maxHeight:240,overflowY:'auto',boxShadow:'0 12px 40px rgba(0,0,0,0.14)'}}>
+                  <div style={{position:'absolute',top:'calc(100% + 6px)',left:0,right:0,zIndex:9999,background:'rgba(255,255,255,0.98)',backdropFilter:'blur(32px) saturate(200%)',WebkitBackdropFilter:'blur(32px) saturate(200%)',border:'1px solid rgba(255,255,255,0.95)',borderRadius:14,maxHeight:260,overflowY:'auto',boxShadow:'0 16px 48px rgba(0,0,0,0.16)'}}>
                     {suggs.map(p=>(
                       <button key={p.id} onMouseDown={()=>selProd(p)}
                         style={{display:'block',width:'100%',padding:'11px 16px',background:'transparent',border:'none',borderBottom:'1px solid rgba(0,0,0,0.045)',color:'var(--t1)',fontSize:13.5,textAlign:'left',cursor:'pointer',transition:'background 0.1s'}}

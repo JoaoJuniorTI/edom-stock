@@ -60,7 +60,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <nav style={{flex:1,padding:'14px 8px',display:'flex',flexDirection:'column',gap:2}}>
             {nav.map(({href,label,icon:Icon})=>(
               <button key={href}
-                className={`sidebar-link${pathname===href?' active':''}`}
+                className={`sidebar-link${pathname===href?' active':''}`} tabIndex={-1}
                 onClick={()=>router.push(href)}
                 title={col?label:undefined}
                 style={{justifyContent:col?'center':'flex-start',padding:col?'10px 0':'9px 12px'}}>
@@ -76,11 +76,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 {syncMsg}
               </div>
             )}
-            <button className="sidebar-link" onClick={handleSync} disabled={syncing} title={col?'Sincronizar CSV':undefined} style={{justifyContent:col?'center':'flex-start',opacity:syncing?0.65:1}}>
+            <button className="sidebar-link" onClick={handleSync} tabIndex={-1} disabled={syncing} title={col?'Sincronizar CSV':undefined} style={{justifyContent:col?'center':'flex-start',opacity:syncing?0.65:1}}>
               {syncing?<Loader2 size={16} strokeWidth={1.7} className="spin"/>:<RefreshCw size={16} strokeWidth={1.7}/>}
               {!col&&<span style={{marginLeft:2}}>{syncing?'Sincronizando…':'Sincronizar CSV'}</span>}
             </button>
-            <button className="sidebar-link" onClick={()=>setCol(!col)} style={{justifyContent:col?'center':'flex-start',marginTop:2}}>
+            <button className="sidebar-link" onClick={()=>setCol(!col)} tabIndex={-1} style={{justifyContent:col?'center':'flex-start',marginTop:2}}>
               {col?<ChevronRight size={16} strokeWidth={1.7}/>:<><ChevronLeft size={16} strokeWidth={1.7}/><span style={{marginLeft:2}}>Recolher</span></>}
             </button>
           </div>

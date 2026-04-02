@@ -40,7 +40,7 @@ export default function Dashboard() {
   return(
     <div className="fade-in">
       <div style={{marginBottom:38}}>
-        <h1 style={{fontFamily:'Playfair Display,serif',fontSize:36,fontWeight:300,color:'var(--t1)',letterSpacing:'-0.02em',lineHeight:1.1}}>Dashboard</h1>
+        <h1 style={{fontFamily:'var(--font-display)',fontSize:36,fontWeight:300,color:'var(--t1)',letterSpacing:'-0.02em',lineHeight:1.1}}>Dashboard</h1>
         <p style={{color:'var(--t3)',fontSize:14.5,marginTop:8,fontFamily:'var(--font-ui)'}}>
           Visão geral · Alerta automático abaixo de <strong style={{color:'var(--danger)',fontWeight:700}}>10 dias</strong> de estoque
         </p>
@@ -62,7 +62,7 @@ export default function Dashboard() {
                 <Icon size={16} style={{color:accent}} strokeWidth={2}/>
               </div>
             </div>
-            <div style={{fontFamily:'Playfair Display,serif',fontSize:46,color:accent,fontWeight:300,lineHeight:1,marginBottom:14,position:'relative'}}>{loading?'—':value}</div>
+            <div style={{fontFamily:'var(--font-display)',fontSize:46,color:accent,fontWeight:300,lineHeight:1,marginBottom:14,position:'relative'}}>{loading?'—':value}</div>
             <div style={{display:'flex',alignItems:'center',gap:5,fontFamily:'var(--font-ui)',fontSize:12,color:'var(--t4)',fontWeight:500,position:'relative'}}>{hint}<ArrowRight size={11} strokeWidth={2}/></div>
           </div>
         ))}
@@ -84,7 +84,7 @@ export default function Dashboard() {
 
       {/* Table */}
       <div>
-        <h2 style={{fontFamily:'Playfair Display,serif',fontSize:22,fontWeight:400,marginBottom:16,color:'var(--t1)'}}>Todos os produtos</h2>
+        <h2 style={{fontFamily:'var(--font-display)',fontSize:22,fontWeight:400,marginBottom:16,color:'var(--t1)'}}>Todos os produtos</h2>
         <div style={{...glass.card,overflow:'hidden'}}>
           {loading
             ?<div style={{padding:56,textAlign:'center',color:'var(--t4)',fontFamily:'var(--font-ui)',fontSize:14}}>Carregando…</div>

@@ -49,11 +49,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div style={{padding:col?'22px 0':'26px 20px 22px', textAlign:col?'center':'left', borderBottom:'1px solid rgba(0,0,0,0.07)', transition:'padding 0.28s'}}>
             {!col ? (
               <div>
-                <div style={{fontFamily:'Playfair Display,serif',fontSize:22,color:'var(--gold)',letterSpacing:'0.05em',fontWeight:400,lineHeight:1}}>EDOM</div>
+                <div style={{fontFamily:'var(--font-display)',fontSize:22,color:'var(--gold)',letterSpacing:'0.05em',fontWeight:400,lineHeight:1}}>EDOM</div>
                 <div style={{fontSize:9.5,letterSpacing:'0.18em',textTransform:'uppercase',color:'var(--t4)',marginTop:3,fontWeight:700,fontFamily:'var(--font-ui)'}}>Decants · Estoque</div>
               </div>
             ) : (
-              <div style={{fontFamily:'Playfair Display,serif',fontSize:20,color:'var(--gold)',textAlign:'center'}}>E</div>
+              <div style={{fontFamily:'var(--font-display)',fontSize:20,color:'var(--gold)',textAlign:'center'}}>E</div>
             )}
           </div>
 

@@ -201,7 +201,7 @@ ${note?`<div class="note">${note}</div>`:''}
 
             <div style={{marginBottom:16}}>
               <div style={{fontSize:10.5,fontWeight:700,letterSpacing:'0.07em',textTransform:'uppercase',color:'var(--t4)',marginBottom:5}}>Cliente</div>
-              <div style={{fontSize:15.5,fontFamily:'Playfair Display,serif',color:clientName?'var(--t1)':'var(--t5)',fontWeight:400}}>{clientName||'não informado'}</div>
+              <div style={{fontSize:15.5,fontFamily:'var(--font-display)',color:clientName?'var(--t1)':'var(--t5)',fontWeight:400}}>{clientName||'não informado'}</div>
             </div>
 
             <div className="gold-line" style={{margin:'16px 0'}}/>
@@ -209,7 +209,7 @@ ${note?`<div class="note">${note}</div>`:''}
             {/* Subtotal */}
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
               <div style={{fontSize:12,color:'var(--t3)',fontWeight:500}}>Subtotal ({items.length} {items.length===1?'item':'itens'})</div>
-              <div style={{fontFamily:'Playfair Display,serif',fontSize:20,color:'var(--t2)',fontWeight:400}}>R$ {subtotal.toFixed(2).replace('.',',')}</div>
+              <div style={{fontFamily:'var(--font-display)',fontSize:20,color:'var(--t2)',fontWeight:400}}>R$ {subtotal.toFixed(2).replace('.',',')}</div>
             </div>
 
             {/* Frete */}
@@ -233,7 +233,7 @@ ${note?`<div class="note">${note}</div>`:''}
             {/* Total */}
             <div style={{background:'var(--gold-bg)',border:'1px solid var(--gold-border)',borderRadius:14,padding:'16px 18px',marginBottom:18,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
               <div style={{fontSize:11,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',color:'var(--gold)'}}>Total</div>
-              <div style={{fontFamily:'Playfair Display,serif',fontSize:30,color:'var(--gold)',fontWeight:300}}>R$ {total.toFixed(2).replace('.',',')}</div>
+              <div style={{fontFamily:'var(--font-display)',fontSize:30,color:'var(--gold)',fontWeight:300}}>R$ {total.toFixed(2).replace('.',',')}</div>
             </div>
 
             <div style={{marginBottom:18}}>

@@ -2,7 +2,7 @@
 import './globals.css'
 import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, Package, BarChart2, FileText, ClipboardList, RefreshCw, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
+import { LayoutDashboard, Package, BarChart2, FileText, ClipboardList, RefreshCw, ChevronLeft, ChevronRight, Loader2, Menu, X } from 'lucide-react'
 import { glass } from '@/lib/styles'
 
 const nav = [
@@ -16,10 +16,11 @@ const nav = [
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router   = useRouter()
-  const [col, setCol]         = useState(false)
-  const [syncing, setSyncing] = useState(false)
-  const [syncMsg, setSyncMsg] = useState('')
-  const [syncOk, setSyncOk]   = useState(true)
+  const [col, setCol]           = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [syncing, setSyncing]   = useState(false)
+  const [syncMsg, setSyncMsg]   = useState('')
+  const [syncOk, setSyncOk]     = useState(true)
 
   async function handleSync() {
     setSyncing(true); setSyncMsg('')
@@ -32,21 +33,62 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     finally { setSyncing(false) }
   }
 
+  function navigate(href: string) {
+    router.push(href)
+    setMobileOpen(false)
+  }
+
   return (
     <html lang="pt-BR">
       <head>
         <title>Edom Decants · Estoque</title>
         <meta name="viewport" content="width=device-width,initial-scale=1"/>
       </head>
-      <body style={{display:'flex',minHeight:'100vh'}}>
+      <body style={{display:'flex',minHeight:'100vh',position:'relative'}}>
+
+        {/* ── MOBILE TOPBAR ── */}
+        <div style={{
+          display:'none',
+          position:'fixed',top:0,left:0,right:0,zIndex:200,
+          height:56,
+          background:'rgba(250,247,242,0.97)',
+          borderBottom:'1px solid rgba(0,0,0,0.08)',
+          alignItems:'center',
+          justifyContent:'space-between',
+          padding:'0 16px',
+        }} className="mobile-topbar">
+          <div style={{fontFamily:'var(--font-display)',fontSize:20,color:'var(--gold)',letterSpacing:'0.05em'}}>EDOM</div>
+          <button onClick={()=>setMobileOpen(o=>!o)} tabIndex={-1}
+            style={{background:'transparent',border:'none',cursor:'pointer',padding:8,color:'var(--t2)',display:'flex',alignItems:'center'}}>
+            {mobileOpen ? <X size={22} strokeWidth={1.8}/> : <Menu size={22} strokeWidth={1.8}/>}
+          </button>
+        </div>
+
+        {/* ── MOBILE OVERLAY ── */}
+        {mobileOpen && (
+          <div onClick={()=>setMobileOpen(false)}
+            style={{position:'fixed',inset:0,zIndex:149,background:'rgba(0,0,0,0.35)'}}
+            className="mobile-overlay"/>
+        )}
+
+        {/* ── SIDEBAR ── */}
         <aside style={{
           ...glass.sidebar,
-          width:col?64:228, minHeight:'100vh', flexShrink:0,
-          display:'flex', flexDirection:'column',
-          position:'sticky', top:0, height:'100vh', overflow:'hidden',
+          width: col ? 64 : 228,
+          minHeight:'100vh',
+          flexShrink:0,
+          display:'flex',
+          flexDirection:'column',
+          position:'sticky',
+          top:0,
+          height:'100vh',
+          overflow:'hidden',
           transition:'width 0.28s cubic-bezier(0.16,1,0.3,1)',
-        }}>
-          <div style={{padding:col?'22px 0':'26px 20px 22px', textAlign:col?'center':'left', borderBottom:'1px solid rgba(0,0,0,0.07)', transition:'padding 0.28s'}}>
+          zIndex:150,
+        }} className="sidebar-desktop">
+
+          {/* Logo */}
+          <div style={{padding:col?'22px 0':'26px 20px 22px',textAlign:col?'center':'left',borderBottom:'1px solid rgba(0,0,0,0.07)',transition:'padding 0.28s'}}>
             {!col ? (
               <div>
                 <div style={{fontFamily:'var(--font-display)',fontSize:22,color:'var(--gold)',letterSpacing:'0.05em',fontWeight:400,lineHeight:1}}>EDOM</div>
@@ -57,11 +99,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             )}
           </div>
 
+          {/* Nav */}
           <nav style={{flex:1,padding:'14px 8px',display:'flex',flexDirection:'column',gap:2}}>
             {nav.map(({href,label,icon:Icon})=>(
               <button key={href}
                 className={`sidebar-link${pathname===href?' active':''}`} tabIndex={-1}
-                onClick={()=>router.push(href)}
+                onClick={()=>navigate(href)}
                 title={col?label:undefined}
                 style={{justifyContent:col?'center':'flex-start',padding:col?'10px 0':'9px 12px'}}>
                 <Icon size={17} strokeWidth={1.7}/>
@@ -70,6 +113,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             ))}
           </nav>
 
+          {/* Footer */}
           <div style={{padding:'10px 8px 18px',borderTop:'1px solid rgba(0,0,0,0.07)'}}>
             {!col&&syncMsg&&(
               <div style={{fontSize:11.5,fontWeight:500,marginBottom:8,color:syncOk?'var(--success-dark)':'var(--danger)',background:syncOk?'var(--success-bg)':'var(--danger-bg)',border:`1px solid ${syncOk?'var(--success-border)':'var(--danger-border)'}`,borderRadius:10,padding:'7px 11px',lineHeight:1.4}}>
@@ -86,9 +130,63 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         </aside>
 
-        <main style={{flex:1,padding:'40px 44px',overflowY:'auto',maxWidth:'100%',minHeight:'100vh'}}>
+        {/* ── MOBILE SIDEBAR (drawer) ── */}
+        <aside style={{
+          ...glass.sidebar,
+          position:'fixed',
+          top:56,left:0,bottom:0,
+          width:240,
+          display:'flex',
+          flexDirection:'column',
+          zIndex:150,
+          transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
+          transition:'transform 0.28s cubic-bezier(0.16,1,0.3,1)',
+          overflow:'hidden',
+        }} className="sidebar-mobile">
+
+          <nav style={{flex:1,padding:'14px 8px',display:'flex',flexDirection:'column',gap:2}}>
+            {nav.map(({href,label,icon:Icon})=>(
+              <button key={href}
+                className={`sidebar-link${pathname===href?' active':''}`} tabIndex={-1}
+                onClick={()=>navigate(href)}>
+                <Icon size={17} strokeWidth={1.7}/>
+                <span style={{marginLeft:8}}>{label}</span>
+              </button>
+            ))}
+          </nav>
+
+          <div style={{padding:'10px 8px 18px',borderTop:'1px solid rgba(0,0,0,0.07)'}}>
+            {syncMsg&&(
+              <div style={{fontSize:11.5,fontWeight:500,marginBottom:8,color:syncOk?'var(--success-dark)':'var(--danger)',background:syncOk?'var(--success-bg)':'var(--danger-bg)',border:`1px solid ${syncOk?'var(--success-border)':'var(--danger-border)'}`,borderRadius:10,padding:'7px 11px',lineHeight:1.4}}>
+                {syncMsg}
+              </div>
+            )}
+            <button className="sidebar-link" onClick={handleSync} tabIndex={-1} disabled={syncing} style={{justifyContent:'flex-start',opacity:syncing?0.65:1}}>
+              {syncing?<Loader2 size={16} strokeWidth={1.7} className="spin"/>:<RefreshCw size={16} strokeWidth={1.7}/>}
+              <span style={{marginLeft:2}}>{syncing?'Sincronizando…':'Sincronizar CSV'}</span>
+            </button>
+          </div>
+        </aside>
+
+        {/* ── MAIN CONTENT ── */}
+        <main style={{flex:1,padding:'40px 44px',overflowY:'auto',maxWidth:'100%',minHeight:'100vh'}} className="main-content">
           {children}
         </main>
+
+        {/* ── RESPONSIVE STYLES ── */}
+        <style>{`
+          @media (max-width: 768px) {
+            .mobile-topbar { display: flex !important; }
+            .sidebar-desktop { display: none !important; }
+            .sidebar-mobile { display: flex !important; }
+            .main-content {
+              padding: 72px 16px 24px !important;
+            }
+          }
+          @media (min-width: 769px) {
+            .sidebar-mobile { display: none !important; }
+          }
+        `}</style>
       </body>
     </html>
   )

@@ -72,7 +72,8 @@ export default function EstoquePage() {
     },
   ]
 
-  const filtered = stock.filter(s=>s.name.toLowerCase().includes(search.toLowerCase()))
+  const n = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const filtered = stock.filter(s => n(s.name).includes(n(search)))
 
   return (
     <div className="fade-in">

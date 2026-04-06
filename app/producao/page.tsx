@@ -30,8 +30,9 @@ export default function ProducaoPage() {
   const channelRef = useRef<HTMLSelectElement>(null)
   const addBtnRef  = useRef<HTMLButtonElement>(null)
 
+  const n = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
   const suggs = products.filter(p =>
-    search.length > 0 && p.name.toLowerCase().includes(search.toLowerCase())
+    search.length > 0 && n(p.name).includes(n(search))
   ).slice(0, 10)
 
   // ── Carregar lista salva ao montar ──────────────────────────

@@ -37,7 +37,8 @@ export default function OrcamentoPage() {
 
   useEffect(()=>{ fetch('/api/products').then(r=>r.json()).then(d=>setProducts(d.products||[])) }, [])
 
-  const suggs = products.filter(p=>search.length>1&&p.name.toLowerCase().includes(search.toLowerCase())).slice(0,8)
+  const n = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const suggs = products.filter(p=>search.length>1&&n(p.name).includes(n(search))).slice(0,8)
 
   function selProd(p:Product){
     setSelProduct(p); setSearch(p.name); setShowSugg(false); setSelVolume(''); setSuggIdx(-1)

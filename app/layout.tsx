@@ -11,6 +11,7 @@ const nav = [
   { href:'/previsao',  label:'Previsão',   icon:BarChart2 },
   { href:'/producao',  label:'Produção',   icon:ClipboardList },
   { href:'/orcamento', label:'Orçamento',  icon:FileText },
+  { href:'/orcamentos', label:'Salvos',     icon:Archive },
 ]
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -8,10 +8,10 @@ export async function POST() {
     const csvUrl = process.env.CSV_URL
     if (!csvUrl) throw new Error('CSV_URL não configurada')
 
-    // Fetch with multiple fallback attempts
+    // Busca o CSV com até 3 tentativas
     let text = ''
     let lastError = ''
-    
+
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         const res = await fetch(csvUrl, {
@@ -37,64 +37,113 @@ export async function POST() {
     const lines = text.trim().split('\n')
     const dataLines = lines.slice(1).filter(l => l.trim())
 
-    let inserted = 0
-    let updated = 0
+    // Monta a lista de produtos válidos do CSV
+    const csvProducts: {
+      name: string
+      application: string | null
+      brand: string | null
+      inspiration: string | null
+      volumes: { ml: number; price: number }[]
+    }[] = []
 
     for (const line of dataLines) {
       const cols = parseCSVLine(line)
       if (cols.length < 1) continue
-
       const name = cols[0]?.trim().replace(/^"|"$/g, '')
       if (!name) continue
 
-      const application = clean(cols[1])
-      const brand = clean(cols[2])
-      const inspiration = clean(cols[3])
-      const price1ml = parsePrice(cols[4])
-      const price2ml = parsePrice(cols[5])
-      const price3ml = parsePrice(cols[6])
-      const price5ml = parsePrice(cols[7])
+      const volumes: { ml: number; price: number }[] = []
+      const prices = [
+        { ml: 1, price: parsePrice(cols[4]) },
+        { ml: 2, price: parsePrice(cols[5]) },
+        { ml: 3, price: parsePrice(cols[6]) },
+        { ml: 5, price: parsePrice(cols[7]) },
+      ]
+      for (const p of prices) if (p.price !== null) volumes.push({ ml: p.ml, price: p.price })
 
+      csvProducts.push({
+        name,
+        application: clean(cols[1]),
+        brand: clean(cols[2]),
+        inspiration: clean(cols[3]),
+        volumes,
+      })
+    }
+
+    // 🔒 Salvaguarda: se o CSV não trouxe nenhum produto válido (planilha vazia,
+    // export quebrado, etc.), abortamos SEM desativar nada — caso contrário o
+    // catálogo inteiro seria zerado por um erro temporário do Google.
+    if (csvProducts.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'O CSV não retornou nenhum produto válido. Sync abortado por segurança (nada foi alterado).' },
+        { status: 400 }
+      )
+    }
+
+    let inserted = 0
+    let updated = 0
+
+    // Cria / atualiza cada produto do CSV (e reativa se estava inativo)
+    for (const prod of csvProducts) {
       const result = await query<{ id: number; xmax: string }>(
-        `INSERT INTO products (name, application, brand, inspiration, synced_at)
-         VALUES ($1, $2, $3, $4, NOW())
+        `INSERT INTO products (name, application, brand, inspiration, active, synced_at)
+         VALUES ($1, $2, $3, $4, true, NOW())
          ON CONFLICT (name) DO UPDATE SET
            application = EXCLUDED.application,
-           brand = EXCLUDED.brand,
+           brand       = EXCLUDED.brand,
            inspiration = EXCLUDED.inspiration,
-           synced_at = NOW()
+           active      = true,
+           synced_at   = NOW()
          RETURNING id, xmax::text`,
-        [name, application, brand, inspiration]
+        [prod.name, prod.application, prod.brand, prod.inspiration]
       )
 
       const { id, xmax } = result[0]
       if (xmax === '0') inserted++
       else updated++
 
-      const volumes = [
-        { ml: 1, price: price1ml },
-        { ml: 2, price: price2ml },
-        { ml: 3, price: price3ml },
-        { ml: 5, price: price5ml },
-      ]
-
-      for (const v of volumes) {
-        if (v.price !== null) {
-          await query(
-            `INSERT INTO product_volumes (product_id, volume_ml, price)
-             VALUES ($1, $2, $3)
-             ON CONFLICT (product_id, volume_ml) DO UPDATE SET price = EXCLUDED.price`,
-            [id, v.ml, v.price]
-          )
-        }
+      // Upsert dos volumes presentes (reativando os que voltaram)
+      for (const v of prod.volumes) {
+        await query(
+          `INSERT INTO product_volumes (product_id, volume_ml, price, active)
+           VALUES ($1, $2, $3, true)
+           ON CONFLICT (product_id, volume_ml) DO UPDATE SET
+             price  = EXCLUDED.price,
+             active = true`,
+          [id, v.ml, v.price]
+        )
       }
+
+      // Desativa volumes que saíram do CSV para este produto
+      const presentMls = prod.volumes.map(v => v.ml)
+      await query(
+        `UPDATE product_volumes
+           SET active = false
+         WHERE product_id = $1
+           AND active = true
+           AND volume_ml <> ALL($2::int[])`,
+        [id, presentMls]
+      )
     }
+
+    // Exclusão lógica: desativa produtos que não estão mais no CSV
+    const csvNames = csvProducts.map(p => p.name)
+    const deactivatedRows = await query<{ id: number }>(
+      `UPDATE products
+         SET active = false, synced_at = NOW()
+       WHERE active = true
+         AND name <> ALL($1::text[])
+       RETURNING id`,
+      [csvNames]
+    )
+    const deactivated = deactivatedRows.length
 
     return NextResponse.json({
       success: true,
-      message: `Sync concluído: ${inserted} novos, ${updated} atualizados`,
+      message: `Sync concluído: ${inserted} novos, ${updated} atualizados, ${deactivated} removidos`,
       inserted,
       updated,
+      deactivated,
       total: inserted + updated,
       synced_at: new Date().toISOString(),
     })

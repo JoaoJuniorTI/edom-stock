@@ -1,6 +1,48 @@
 import { NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 
+
+let quotesTableReady = false
+
+async function ensureQuotesTable() {
+  if (quotesTableReady) return
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS quotes (
+      id              SERIAL PRIMARY KEY,
+      number          TEXT NOT NULL DEFAULT 'PENDING',
+      client_name     TEXT NOT NULL,
+      client_contact  TEXT,
+      items           JSONB NOT NULL DEFAULT '[]'::jsonb,
+      frete_valor     NUMERIC(10,2) NOT NULL DEFAULT 0,
+      frete_transp    TEXT,
+      desconto_tipo   TEXT NOT NULL DEFAULT 'reais',
+      desconto_valor  NUMERIC(10,2) NOT NULL DEFAULT 0,
+      note            TEXT,
+      total           NUMERIC(10,2) NOT NULL DEFAULT 0,
+      created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  // Garante compatibilidade caso a tabela já exista com uma versão antiga.
+  await query(`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS number TEXT NOT NULL DEFAULT 'PENDING'`)
+  await query(`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS client_name TEXT NOT NULL DEFAULT ''`)
+  await query(`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS client_contact TEXT`)
+  await query(`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS items JSONB NOT NULL DEFAULT '[]'::jsonb`)
+  await query(`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS frete_valor NUMERIC(10,2) NOT NULL DEFAULT 0`)
+  await query(`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS frete_transp TEXT`)
+  await query(`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS desconto_tipo TEXT NOT NULL DEFAULT 'reais'`)
+  await query(`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS desconto_valor NUMERIC(10,2) NOT NULL DEFAULT 0`)
+  await query(`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS note TEXT`)
+  await query(`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS total NUMERIC(10,2) NOT NULL DEFAULT 0`)
+  await query(`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`)
+  await query(`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`)
+  await query(`CREATE INDEX IF NOT EXISTS idx_quotes_created_at ON quotes (created_at DESC)`)
+
+  quotesTableReady = true
+}
+
 // Orçamentos com mais de 30 dias são removidos automaticamente para
 // manter o sistema limpo. A limpeza roda toda vez que a lista é carregada.
 const RETENTION_DAYS = 30
@@ -15,6 +57,7 @@ async function purgeOld() {
 // GET /api/quotes?id=123 -> retorna um orçamento específico
 export async function GET(req: Request) {
   try {
+    await ensureQuotesTable()
     await purgeOld()
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')
@@ -38,6 +81,7 @@ export async function GET(req: Request) {
 // derivado do id, ficando estável e sequencial.
 export async function POST(req: Request) {
   try {
+    await ensureQuotesTable()
     const b = await req.json()
     if (!b.client_name) {
       return NextResponse.json({ error: 'Nome do cliente é obrigatório' }, { status: 400 })
@@ -78,6 +122,7 @@ export async function POST(req: Request) {
 // PUT /api/quotes -> atualiza um orçamento existente (body precisa de id)
 export async function PUT(req: Request) {
   try {
+    await ensureQuotesTable()
     const b = await req.json()
     if (!b.id) {
       return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 })
@@ -123,6 +168,7 @@ export async function PUT(req: Request) {
 // DELETE /api/quotes?id=123 -> remove um orçamento
 export async function DELETE(req: Request) {
   try {
+    await ensureQuotesTable()
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')
     if (!id) {

@@ -2,7 +2,7 @@
 // Geração do PDF de orçamento — compartilhada entre a página de orçamento
 // e a lista de orçamentos salvos.
 //
-// Item 1: em vez de baixar (pdf.save), o PDF é aberto em uma NOVA ABA.
+// Em vez de baixar (pdf.save), o PDF é aberto em uma NOVA ABA.
 // No Safari do iPhone, window.open só funciona se chamado dentro do "gesto"
 // do clique — por isso a aba é aberta logo na 1ª linha, antes de qualquer
 // await. Se o navegador bloquear o pop-up, cai no download como fallback.

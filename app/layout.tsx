@@ -10,7 +10,8 @@ const nav = [
   { href:'/estoque',   label:'Estoque',    icon:Package },
   { href:'/previsao',  label:'Previsão',   icon:BarChart2 },
   { href:'/producao',  label:'Produção',   icon:ClipboardList },
-  { href:'/orcamento', label:'Orçamento',  icon:FileText },
+  { href:'/orcamento',  label:'Orçamento',  icon:FileText },
+  { href:'/orcamentos', label:'Orçamentos', icon:Archive },
 ]
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

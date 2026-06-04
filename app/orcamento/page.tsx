@@ -1,8 +1,8 @@
 'use client'
 import { useEffect, useState, useRef, KeyboardEvent } from 'react'
 import { glass } from '@/lib/styles'
-import { generateQuotePDF } from '@/lib/pdf'
-import { Plus, Trash2, FileText, Search, User, Truck, Tag, Save, RefreshCw, FilePlus } from 'lucide-react'
+import { generateQuotePDF, openQuotePDFWindow } from '@/lib/pdf'
+import { Plus, Trash2, FileText, Search, User, Truck, Tag, RefreshCw, FilePlus } from 'lucide-react'
 
 interface Product { id:number;name:string;brand:string;volumes:{volume_ml:number;price:number}[] }
 interface QuoteItem { product_id:number;product_name:string;brand:string;volume_ml:number;price:number }
@@ -179,22 +179,9 @@ export default function OrcamentoPage() {
     }
   }
 
-  async function generatePDF(){
-    if(generating) return
-    setGenerating(true)
-    try {
-      await generateQuotePDF(buildQuoteData())
-    } catch(err){
-      console.error('Erro ao gerar PDF:', err)
-      alert('Erro ao gerar PDF. Tente novamente.')
-    } finally {
-      setGenerating(false)
-    }
-  }
-
   // Salva (novo) ou atualiza (existente) o orçamento no banco
-  async function saveQuote(){
-    if(saving || !clientName || items.length===0) return
+  async function saveQuote(options?: {silent?: boolean}){
+    if(saving || !clientName || items.length===0) return null
     setSaving(true)
     const payload = {
       client_name: clientName,
@@ -217,15 +204,54 @@ export default function OrcamentoPage() {
         setQuoteId(d.quote.id)
         setQuoteNumber(d.quote.number)
         setQuoteCreatedAt(d.quote.created_at)
-        setSaveMsg({text: editing?'Orçamento atualizado!':`Orçamento salvo (${d.quote.number}).`, ok:true})
+        if(!options?.silent){
+          setSaveMsg({text: editing?'Orçamento atualizado!':`Orçamento salvo (${d.quote.number}).`, ok:true})
+        }
+        return d.quote
       } else {
         setSaveMsg({text: d.error||'Erro ao salvar', ok:false})
+        return null
       }
     } catch {
       setSaveMsg({text:'Erro de conexão', ok:false})
+      return null
     } finally {
       setSaving(false)
+      if(!options?.silent){
+        setTimeout(()=>setSaveMsg({text:'',ok:true}), 4000)
+      }
+    }
+  }
+
+  async function generatePDF(){
+    if(generating || saving) return
+
+    // Abre a aba imediatamente no clique para evitar bloqueio no Chrome/Safari do iPhone.
+    // Depois o sistema salva o orçamento e carrega o PDF nessa mesma aba.
+    const pdfWindow = openQuotePDFWindow()
+
+    setGenerating(true)
+    try {
+      const savedQuote = await saveQuote({silent:true})
+      if(!savedQuote){
+        pdfWindow?.close()
+        return
+      }
+
+      const quoteData = buildQuoteData()
+      await generateQuotePDF({
+        ...quoteData,
+        number: savedQuote.number || quoteData.number,
+        created_at: savedQuote.created_at || quoteData.created_at,
+      }, pdfWindow)
+
+      setSaveMsg({text:`Orçamento salvo automaticamente${savedQuote.number?` (${savedQuote.number})`:''} e PDF gerado.`, ok:true})
       setTimeout(()=>setSaveMsg({text:'',ok:true}), 4000)
+    } catch(err){
+      console.error('Erro ao gerar PDF:', err)
+      alert('Erro ao gerar PDF. Tente novamente.')
+    } finally {
+      setGenerating(false)
     }
   }
 
@@ -262,7 +288,7 @@ export default function OrcamentoPage() {
             {quoteId?'Editar orçamento':'Gerar orçamento'}
           </h1>
           <p style={{color:'var(--t3)',fontSize:14.5,marginTop:7}}>
-            {quoteNumber ? `Editando ${quoteNumber}` : 'Monte o orçamento, salve para editar depois e exporte em PDF'}
+            {quoteNumber ? `Editando ${quoteNumber}` : 'Monte o orçamento e gere o PDF para salvar automaticamente'}
           </p>
         </div>
         {quoteId && (
@@ -531,25 +557,15 @@ export default function OrcamentoPage() {
             </div>
           )}
 
-          {/* Botão Salvar */}
-          <button
-            className="btn-outline"
-            onClick={saveQuote}
-            disabled={items.length===0||!clientName||saving}
-            style={{width:'100%',padding:'12px 20px',marginBottom:10,justifyContent:'center',opacity:(items.length===0||!clientName||saving)?0.45:1}}
-          >
-            <Save size={15}/> {saving?'Salvando…':(quoteId?'Atualizar orçamento':'Salvar orçamento')}
-          </button>
-
-          {/* Botão PDF */}
+          {/* Botão PDF: salva automaticamente e abre o arquivo */}
           <button
             ref={pdfBtnRef}
             className="btn-gold"
             onClick={generatePDF}
-            disabled={items.length===0||!clientName||generating}
+            disabled={items.length===0||!clientName||generating||saving}
             style={{width:'100%',padding:'13px 20px',fontSize:14}}
           >
-            <FileText size={15}/> {generating?'Gerando PDF…':'Gerar PDF'}
+            <FileText size={15}/> {generating||saving?'Salvando e gerando PDF…':'Gerar PDF'}
           </button>
           {(!clientName||items.length===0)&&(
             <p style={{fontSize:12,color:'var(--t4)',textAlign:'center',marginTop:8}}>

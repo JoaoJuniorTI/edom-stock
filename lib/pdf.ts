@@ -31,7 +31,7 @@ function fmt(v: number) {
   return 'R$\u00a0' + v.toFixed(2).replace('.', ',')
 }
 
-export async function generateQuotePDF(data: QuotePdfData) {
+export function openQuotePDFWindow() {
   // ⚠️ Abrir a aba AGORA (síncrono), ainda dentro do gesto do clique.
   // Abrir após um await faz o iOS tratar como pop-up e bloquear.
   const win = typeof window !== 'undefined' ? window.open('', '_blank') : null
@@ -46,6 +46,11 @@ export async function generateQuotePDF(data: QuotePdfData) {
     )
     win.document.close()
   }
+  return win
+}
+
+export async function generateQuotePDF(data: QuotePdfData, preOpenedWindow?: Window | null) {
+  const win = preOpenedWindow ?? openQuotePDFWindow()
 
   try {
     const date = new Date(data.created_at || Date.now())

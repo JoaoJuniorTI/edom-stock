@@ -1,7 +1,8 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, KeyboardEvent } from 'react'
 import { glass } from '@/lib/styles'
-import { Plus, Trash2, FileText, Search, User, Truck, Tag } from 'lucide-react'
+import { generateQuotePDF } from '@/lib/pdf'
+import { Plus, Trash2, FileText, Search, User, Truck, Tag, Save, RefreshCw, FilePlus } from 'lucide-react'
 
 interface Product { id:number;name:string;brand:string;volumes:{volume_ml:number;price:number}[] }
 interface QuoteItem { product_id:number;product_name:string;brand:string;volume_ml:number;price:number }
@@ -21,24 +22,140 @@ export default function OrcamentoPage() {
   const [descontoTipo,setDescontoTipo]   = useState<'reais'|'percent'>('reais')
   const [descontoValor,setDescontoValor] = useState('')
   const [generating,setGenerating]       = useState(false)
-  const searchRef = useRef<HTMLInputElement>(null)
+  const [suggIdx,setSuggIdx]             = useState(-1)
 
-  useEffect(()=>{ fetch('/api/products').then(r=>r.json()).then(d=>setProducts(d.products||[])) }, [])
+  // Persistência do orçamento (item 2)
+  const [quoteId,setQuoteId]             = useState<number|null>(null)
+  const [quoteNumber,setQuoteNumber]     = useState<string|null>(null)
+  const [quoteCreatedAt,setQuoteCreatedAt] = useState<string|null>(null)
+  const [saving,setSaving]               = useState(false)
+  const [saveMsg,setSaveMsg]             = useState<{text:string;ok:boolean}>({text:'',ok:true})
 
-  const suggs = products.filter(p=>search.length>1&&p.name.toLowerCase().includes(search.toLowerCase())).slice(0,8)
+  const clientNameRef    = useRef<HTMLInputElement>(null)
+  const clientContactRef = useRef<HTMLInputElement>(null)
+  const searchRef        = useRef<HTMLInputElement>(null)
+  const volumeRef        = useRef<HTMLSelectElement>(null)
+  const addBtnRef        = useRef<HTMLButtonElement>(null)
+  const freteTranspRef   = useRef<HTMLInputElement>(null)
+  const freteValorRef    = useRef<HTMLInputElement>(null)
+  const descontoTipoRef  = useRef<HTMLSelectElement>(null)
+  const descontoValorRef = useRef<HTMLInputElement>(null)
+  const noteRef          = useRef<HTMLTextAreaElement>(null)
+  const pdfBtnRef        = useRef<HTMLButtonElement>(null)
 
-  function selProd(p:Product){ setSelProduct(p); setSearch(p.name); setShowSugg(false); setSelVolume('') }
+  useEffect(()=>{
+    fetch('/api/products').then(r=>r.json()).then(d=>setProducts(d.products||[]))
+    // Se a URL tem ?id=, carrega o orçamento salvo para edição
+    const id = typeof window!=='undefined' ? new URLSearchParams(window.location.search).get('id') : null
+    if(id){
+      fetch('/api/quotes?id='+id).then(r=>r.json()).then(d=>{
+        const q = d.quote
+        if(!q) return
+        setQuoteId(q.id)
+        setQuoteNumber(q.number)
+        setQuoteCreatedAt(q.created_at)
+        setClientName(q.client_name||'')
+        setClientContact(q.client_contact||'')
+        setItems(Array.isArray(q.items)?q.items:[])
+        setFreteValor(Number(q.frete_valor)>0?String(Number(q.frete_valor)):'')
+        setFreteTransp(q.frete_transp||'')
+        setDescontoTipo(q.desconto_tipo==='percent'?'percent':'reais')
+        setDescontoValor(Number(q.desconto_valor)>0?String(Number(q.desconto_valor)):'')
+        setNote(q.note||'')
+      })
+    }
+  }, [])
+
+  const n = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const suggs = products.filter(p=>search.length>1&&n(p.name).includes(n(search))).slice(0,8)
+
+  function selProd(p:Product){
+    setSelProduct(p); setSearch(p.name); setShowSugg(false); setSelVolume(''); setSuggIdx(-1)
+    setTimeout(()=>volumeRef.current?.focus(), 50)
+  }
 
   function addItem(){
     if(!selProduct||!selVolume) return
     const v = selProduct.volumes.find(v=>v.volume_ml===Number(selVolume))
     if(!v) return
     setItems(prev=>[...prev,{product_id:selProduct.id,product_name:selProduct.name,brand:selProduct.brand,volume_ml:v.volume_ml,price:Number(v.price)}])
-    setSearch(''); setSelProduct(null); setSelVolume('')
-    searchRef.current?.focus()
+    setSearch(''); setSelProduct(null); setSelVolume(''); setSuggIdx(-1)
+    setTimeout(()=>searchRef.current?.focus(), 50)
   }
 
   function removeItem(idx:number){ setItems(prev=>prev.filter((_,i)=>i!==idx)) }
+
+  // Navega no dropdown de sugestões com setas e seleciona com Enter
+  function handleSearchKey(e: KeyboardEvent<HTMLInputElement>){
+    if(!showSugg||suggs.length===0) return
+    if(e.key==='ArrowDown'){
+      e.preventDefault()
+      setSuggIdx(i=>Math.min(i+1, suggs.length-1))
+    } else if(e.key==='ArrowUp'){
+      e.preventDefault()
+      setSuggIdx(i=>Math.max(i-1, 0))
+    } else if(e.key==='Enter'){
+      e.preventDefault()
+      if(suggIdx>=0 && suggs[suggIdx]) selProd(suggs[suggIdx])
+      else if(suggs.length===1) selProd(suggs[0])
+    } else if(e.key==='Tab'){
+      setShowSugg(false)
+      setSuggIdx(-1)
+    }
+  }
+
+  function handleVolumeKey(e: KeyboardEvent<HTMLSelectElement>){
+    if(e.key==='Tab' && !e.shiftKey){
+      e.preventDefault()
+      addBtnRef.current?.focus()
+    }
+  }
+
+  function handleAddBtnKey(e: KeyboardEvent<HTMLButtonElement>){
+    if(e.key==='Enter'||e.key===' '){
+      e.preventDefault()
+      addItem()
+    }
+    if(e.key==='Tab' && !e.shiftKey){
+      e.preventDefault()
+      freteTranspRef.current?.focus()
+    }
+  }
+
+  function handleFreteTranspKey(e: KeyboardEvent<HTMLInputElement>){
+    if(e.key==='Tab' && !e.shiftKey){
+      e.preventDefault()
+      freteValorRef.current?.focus()
+    }
+  }
+
+  function handleFreteValorKey(e: KeyboardEvent<HTMLInputElement>){
+    if(e.key==='Tab' && !e.shiftKey){
+      e.preventDefault()
+      descontoTipoRef.current?.focus()
+    }
+  }
+
+  function handleDescontoTipoKey(e: KeyboardEvent<HTMLSelectElement>){
+    if(e.key==='Tab' && !e.shiftKey){
+      e.preventDefault()
+      descontoValorRef.current?.focus()
+    }
+  }
+
+  function handleDescontoValorKey(e: KeyboardEvent<HTMLInputElement>){
+    if(e.key==='Tab' && !e.shiftKey){
+      e.preventDefault()
+      noteRef.current?.focus()
+    }
+  }
+
+  function handleNoteKey(e: KeyboardEvent<HTMLTextAreaElement>){
+    if(e.key==='Tab' && !e.shiftKey){
+      e.preventDefault()
+      pdfBtnRef.current?.focus()
+    }
+  }
 
   const subtotal    = items.reduce((s,i)=>s+i.price,0)
   const frete       = parseFloat(freteValor)||0
@@ -46,131 +163,27 @@ export default function OrcamentoPage() {
   const desconto    = descontoTipo==='percent' ? subtotal*(descontoRaw/100) : descontoRaw
   const total       = subtotal+frete-desconto
 
-  function fmt(v:number){ return 'R$\u00a0'+v.toFixed(2).replace('.',',') }
+  // Monta os dados no formato esperado pelo gerador de PDF
+  function buildQuoteData(){
+    return {
+      number: quoteNumber || `ED-${Date.now().toString().slice(-6)}`,
+      client_name: clientName,
+      client_contact: clientContact,
+      items: items.map(i=>({product_name:i.product_name,brand:i.brand,volume_ml:i.volume_ml,price:i.price})),
+      frete_valor: frete,
+      frete_transp: freteTransp,
+      desconto_tipo: descontoTipo,
+      desconto_valor: descontoRaw,
+      note,
+      created_at: quoteCreatedAt || undefined,
+    }
+  }
 
   async function generatePDF(){
     if(generating) return
     setGenerating(true)
     try {
-      const date = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})
-      const num  = `ED-${Date.now().toString().slice(-6)}`
-
-      const freteRow = frete>0
-        ? `<tr>
-            <td colspan="3" style="padding:10px 12px;font-size:13px;color:#888;font-style:italic;border-top:1px solid #EDE0C8">Frete${freteTransp?` · ${freteTransp}`:''}</td>
-            <td style="padding:10px 12px;text-align:right;font-weight:600;font-size:13px;border-top:1px solid #EDE0C8">${fmt(frete)}</td>
-           </tr>` : ''
-
-      const descontoRow = desconto>0
-        ? `<tr>
-            <td colspan="3" style="padding:10px 12px;font-size:13px;color:#2e7d32;font-style:italic;border-top:1px solid #EDE0C8">Desconto${descontoTipo==='percent'?` (${descontoRaw}%)`:''}</td>
-            <td style="padding:10px 12px;text-align:right;font-weight:600;font-size:13px;color:#2e7d32;border-top:1px solid #EDE0C8">- ${fmt(desconto)}</td>
-           </tr>` : ''
-
-      const itemRows = items.map(i=>`
-        <tr>
-          <td style="padding:10px 12px;border-bottom:1px solid #F5EFE4;font-size:13px">${i.product_name}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #F5EFE4;font-size:11.5px;color:#888">${i.brand}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #F5EFE4;text-align:center;font-size:13px">${i.volume_ml}ml</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #F5EFE4;text-align:right;font-weight:600;font-size:13px">${fmt(i.price)}</td>
-        </tr>`).join('')
-
-      // Monta o HTML do orçamento num div oculto
-      const container = document.createElement('div')
-      container.style.cssText = 'position:fixed;left:-9999px;top:0;width:700px;background:#fff;font-family:Arial,sans-serif'
-      container.innerHTML = `
-        <div style="padding:44px 48px;background:#fff;width:700px">
-
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:22px;border-bottom:1.5px solid #E8D5A3">
-            <div>
-              <div style="font-size:28px;font-weight:300;color:#A8842C;letter-spacing:3px;line-height:1;font-family:Georgia,serif">EDOM DECANTS</div>
-              <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#C7C7CC;margin-top:5px;font-weight:500">Decants de Luxo</div>
-            </div>
-            <div style="text-align:right;font-size:12px;color:#6C6C70;line-height:1.9">
-              <div><strong style="color:#3A3A3C">Orçamento</strong></div>
-              <div>${num}</div>
-              <div>${date}</div>
-              <div style="font-size:10px;color:#B8943F;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-top:3px">Proposta Comercial</div>
-            </div>
-          </div>
-
-          <div style="background:#FAF7F0;border:1px solid #EDE0C8;border-radius:10px;padding:16px 20px;margin-bottom:26px">
-            <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#C7C7CC;margin-bottom:5px">Orçamento para</div>
-            <div style="font-size:18px;color:#1C1C1E;font-weight:400;font-family:Georgia,serif">${clientName}</div>
-            ${clientContact?`<div style="font-size:12px;color:#6C6C70;margin-top:2px">${clientContact}</div>`:''}
-          </div>
-
-          <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#AEAEB2;margin-bottom:12px">Itens selecionados</div>
-          <table style="width:100%;border-collapse:collapse">
-            <thead>
-              <tr style="background:#FAF7F0;border-bottom:1.5px solid #E8D5A3">
-                <th style="text-align:left;padding:8px 12px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#B8943F">Perfume</th>
-                <th style="text-align:left;padding:8px 12px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#B8943F">Marca</th>
-                <th style="text-align:center;padding:8px 12px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#B8943F">Volume</th>
-                <th style="text-align:right;padding:8px 12px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#B8943F">Valor</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${itemRows}
-              ${freteRow}
-              ${descontoRow}
-            </tbody>
-          </table>
-
-          <div style="display:flex;justify-content:flex-end;align-items:baseline;gap:14px;margin-top:16px;padding-top:16px;border-top:2px solid #B8943F">
-            <span style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#AEAEB2">Total</span>
-            <span style="font-size:26px;color:#A8842C;font-weight:300;font-family:Georgia,serif">${fmt(total)}</span>
-          </div>
-
-          ${note?`<div style="margin-top:22px;padding:12px 16px;background:#FAF7F0;border-left:3px solid #B8943F;font-size:12px;color:#6C6C70;line-height:1.6">${note}</div>`:''}
-
-          <div style="margin-top:40px;padding-top:16px;border-top:1px solid #F0EBE0;display:flex;justify-content:space-between;align-items:center">
-            <div style="font-size:13px;color:#B8943F;letter-spacing:2px;font-family:Georgia,serif">EDOM DECANTS</div>
-            <div style="font-size:10px;color:#C7C7CC;text-align:right;line-height:1.7">Orçamento válido por 7 dias<br/>Preços sujeitos à disponibilidade de estoque</div>
-          </div>
-
-        </div>
-      `
-      document.body.appendChild(container)
-
-      // Importa dinamicamente para não quebrar SSR
-      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
-        import('html2canvas'),
-        import('jspdf'),
-      ])
-
-      const canvas = await html2canvas(container.firstElementChild as HTMLElement, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-      })
-
-      document.body.removeChild(container)
-
-      const imgData = canvas.toDataURL('image/jpeg', 0.95)
-      const pdf = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' })
-
-      const pageW = pdf.internal.pageSize.getWidth()
-      const pageH = pdf.internal.pageSize.getHeight()
-      const imgW  = pageW
-      const imgH  = (canvas.height * pageW) / canvas.width
-
-      // Se couber em uma página, adiciona direto; senão divide em páginas
-      if(imgH <= pageH){
-        pdf.addImage(imgData,'JPEG',0,0,imgW,imgH)
-      } else {
-        let y = 0
-        while(y < imgH){
-          pdf.addImage(imgData,'JPEG',0,-y,imgW,imgH)
-          y += pageH
-          if(y < imgH) pdf.addPage()
-        }
-      }
-
-      const fileName = `orcamento-${clientName.toLowerCase().replace(/\s+/g,'-')}-${num}.pdf`
-      pdf.save(fileName)
-
+      await generateQuotePDF(buildQuoteData())
     } catch(err){
       console.error('Erro ao gerar PDF:', err)
       alert('Erro ao gerar PDF. Tente novamente.')
@@ -179,41 +192,143 @@ export default function OrcamentoPage() {
     }
   }
 
+  // Salva (novo) ou atualiza (existente) o orçamento no banco
+  async function saveQuote(){
+    if(saving || !clientName || items.length===0) return
+    setSaving(true)
+    const payload = {
+      client_name: clientName,
+      client_contact: clientContact,
+      items,
+      frete_valor: frete,
+      frete_transp: freteTransp,
+      desconto_tipo: descontoTipo,
+      desconto_valor: descontoRaw,
+      note,
+      total,
+    }
+    const editing = quoteId!=null
+    try {
+      const res = editing
+        ? await fetch('/api/quotes',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:quoteId,...payload})})
+        : await fetch('/api/quotes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+      const d = await res.json()
+      if(d.quote){
+        setQuoteId(d.quote.id)
+        setQuoteNumber(d.quote.number)
+        setQuoteCreatedAt(d.quote.created_at)
+        setSaveMsg({text: editing?'Orçamento atualizado!':`Orçamento salvo (${d.quote.number}).`, ok:true})
+      } else {
+        setSaveMsg({text: d.error||'Erro ao salvar', ok:false})
+      }
+    } catch {
+      setSaveMsg({text:'Erro de conexão', ok:false})
+    } finally {
+      setSaving(false)
+      setTimeout(()=>setSaveMsg({text:'',ok:true}), 4000)
+    }
+  }
+
+  // Atualiza os preços (e nome/marca) dos itens com os valores atuais do catálogo
+  function updatePrices(){
+    let changed = 0
+    setItems(prev=>prev.map(it=>{
+      const p = products.find(pr=>pr.id===it.product_id)
+      if(!p) return it
+      const v = p.volumes.find(vv=>vv.volume_ml===it.volume_ml)
+      if(!v) return it
+      if(Number(v.price)!==it.price || p.name!==it.product_name || p.brand!==it.brand) changed++
+      return {...it, price:Number(v.price), product_name:p.name, brand:p.brand}
+    }))
+    setSaveMsg({text: changed>0?`Preços atualizados (${changed} ${changed===1?'item':'itens'}).`:'Os preços já estavam atualizados.', ok:true})
+    setTimeout(()=>setSaveMsg({text:'',ok:true}), 4000)
+  }
+
+  // Limpa tudo para começar um novo orçamento
+  function newQuote(){
+    setQuoteId(null); setQuoteNumber(null); setQuoteCreatedAt(null)
+    setClientName(''); setClientContact(''); setItems([])
+    setFreteValor(''); setFreteTransp(''); setDescontoTipo('reais'); setDescontoValor(''); setNote('')
+    setSearch(''); setSelProduct(null); setSelVolume(''); setSuggIdx(-1)
+    setSaveMsg({text:'',ok:true})
+    if(typeof window!=='undefined' && window.history) window.history.replaceState(null,'','/orcamento')
+  }
+
   return (
     <div className="fade-in">
-      <div style={{marginBottom:28}}>
-        <h1>Gerar orçamento</h1>
-        <p style={{color:'var(--t3)',fontSize:14.5,marginTop:7}}>Monte o orçamento e exporte em PDF para o cliente</p>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:16,marginBottom:28,flexWrap:'wrap'}}>
+        <div>
+          <h1 style={{fontFamily:'var(--font-display)',fontSize:34,fontWeight:300,color:'var(--t1)',letterSpacing:'-0.01em'}}>
+            {quoteId?'Editar orçamento':'Gerar orçamento'}
+          </h1>
+          <p style={{color:'var(--t3)',fontSize:14.5,marginTop:7}}>
+            {quoteNumber ? `Editando ${quoteNumber}` : 'Monte o orçamento, salve para editar depois e exporte em PDF'}
+          </p>
+        </div>
+        {quoteId && (
+          <button className="btn-ghost" onClick={newQuote}>
+            <FilePlus size={14}/> Novo orçamento
+          </button>
+        )}
       </div>
 
       <div style={{display:'grid',gridTemplateColumns:'1fr',gap:18}} className="orcamento-grid">
 
+        {/* Dados do cliente */}
         <div style={{...glass.card,padding:22}}>
           <h3 style={{marginBottom:16,display:'flex',alignItems:'center',gap:8}}><User size={13} strokeWidth={2}/> Dados do cliente</h3>
           <div style={{display:'grid',gap:12}} className="client-grid">
-            <div><label className="label">Nome *</label><input style={{...glass.input}} placeholder="Nome do cliente" value={clientName} onChange={e=>setClientName(e.target.value)}/></div>
-            <div><label className="label">Contato</label><input style={{...glass.input}} placeholder="WhatsApp, e-mail…" value={clientContact} onChange={e=>setClientContact(e.target.value)}/></div>
+            <div>
+              <label className="label">Nome *</label>
+              <input
+                ref={clientNameRef}
+                style={{...glass.input}}
+                placeholder="Nome do cliente"
+                value={clientName}
+                onChange={e=>setClientName(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="label">Contato</label>
+              <input
+                ref={clientContactRef}
+                style={{...glass.input}}
+                placeholder="WhatsApp, e-mail…"
+                value={clientContact}
+                onChange={e=>setClientContact(e.target.value)}
+              />
+            </div>
           </div>
         </div>
 
+        {/* Adicionar produto */}
         <div style={{...glass.card,padding:22}}>
           <h3 style={{marginBottom:16}}>Adicionar produto</h3>
           <div style={{display:'flex',gap:12,flexWrap:'wrap',alignItems:'flex-end'}}>
+
+            {/* Busca */}
             <div style={{flex:2,minWidth:200,position:'relative'}}>
               <label className="label">Produto</label>
               <div style={{position:'relative'}}>
                 <Search size={14} style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:'var(--t4)',pointerEvents:'none'}}/>
-                <input ref={searchRef} style={{...glass.input,paddingLeft:36}} placeholder="Buscar perfume…" value={search}
-                  onChange={e=>{setSearch(e.target.value);setShowSugg(true);setSelProduct(null)}}
-                  onFocus={()=>setShowSugg(true)} onBlur={()=>setTimeout(()=>setShowSugg(false),180)}/>
+                <input
+                  ref={searchRef}
+                  style={{...glass.input,paddingLeft:36}}
+                  placeholder="Buscar perfume…"
+                  value={search}
+                  onChange={e=>{setSearch(e.target.value);setShowSugg(true);setSelProduct(null);setSuggIdx(-1)}}
+                  onFocus={()=>setShowSugg(true)}
+                  onBlur={()=>setTimeout(()=>setShowSugg(false),180)}
+                  onKeyDown={handleSearchKey}
+                />
               </div>
               {showSugg&&suggs.length>0&&(
                 <div style={{position:'absolute',top:'calc(100% + 6px)',left:0,right:0,zIndex:9999,background:'rgba(255,255,255,0.98)',backdropFilter:'blur(32px)',WebkitBackdropFilter:'blur(32px)',border:'1px solid rgba(255,255,255,0.95)',borderRadius:14,maxHeight:240,overflowY:'auto',boxShadow:'0 16px 48px rgba(0,0,0,0.16)'}}>
-                  {suggs.map(p=>(
+                  {suggs.map((p,i)=>(
                     <button key={p.id} onMouseDown={()=>selProd(p)}
-                      style={{display:'block',width:'100%',padding:'11px 16px',background:'transparent',border:'none',borderBottom:'1px solid rgba(0,0,0,0.045)',color:'var(--t1)',fontSize:13.5,textAlign:'left',cursor:'pointer'}}
+                      style={{display:'block',width:'100%',padding:'11px 16px',background:i===suggIdx?'rgba(184,148,63,0.12)':'transparent',border:'none',borderBottom:'1px solid rgba(0,0,0,0.045)',color:'var(--t1)',fontSize:13.5,textAlign:'left',cursor:'pointer',transition:'background 0.1s'}}
                       onMouseEnter={e=>(e.currentTarget.style.background='rgba(184,148,63,0.07)')}
-                      onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
+                      onMouseLeave={e=>(e.currentTarget.style.background=i===suggIdx?'rgba(184,148,63,0.12)':'transparent')}>
                       <span style={{fontWeight:500}}>{p.name}</span>
                       <span style={{fontSize:11.5,color:'var(--t4)',marginLeft:8}}>{p.brand}</span>
                     </button>
@@ -221,40 +336,68 @@ export default function OrcamentoPage() {
                 </div>
               )}
             </div>
+
+            {/* Volumetria */}
             <div style={{minWidth:160}}>
               <label className="label">Volumetria</label>
-              <select style={{...glass.input}} value={selVolume} onChange={e=>setSelVolume(e.target.value)} disabled={!selProduct}>
+              <select
+                ref={volumeRef}
+                style={{...glass.input}}
+                value={selVolume}
+                onChange={e=>setSelVolume(e.target.value)}
+                onKeyDown={handleVolumeKey}
+                disabled={!selProduct}
+              >
                 <option value="">Selecione…</option>
                 {selProduct?.volumes.map(v=>(
                   <option key={v.volume_ml} value={v.volume_ml}>{v.volume_ml}ml — R$ {Number(v.price).toFixed(2).replace('.',',')}</option>
                 ))}
               </select>
             </div>
-            <button className="btn-gold" onClick={addItem} disabled={!selProduct||!selVolume} style={{marginBottom:1}}>
+
+            {/* Botão Adicionar */}
+            <button
+              ref={addBtnRef}
+              className="btn-gold"
+              onClick={addItem}
+              onKeyDown={handleAddBtnKey}
+              disabled={!selProduct||!selVolume}
+              style={{marginBottom:1}}
+              tabIndex={0}
+            >
               <Plus size={14}/> Adicionar
             </button>
           </div>
         </div>
 
+        {/* Lista de itens */}
         {items.length>0 ? (
-          <div style={{...glass.card,overflow:'hidden',overflowX:'auto'}}>
-            <table style={{minWidth:400}}>
-              <thead><tr><th style={{width:32}}>#</th><th>Produto</th><th>Volume</th><th>Preço</th><th style={{width:40}}></th></tr></thead>
-              <tbody>
-                {items.map((item,idx)=>(
-                  <tr key={idx}>
-                    <td style={{color:'var(--t5)',fontSize:12}}>{idx+1}</td>
-                    <td>
-                      <div style={{fontWeight:500,fontSize:13.5}}>{item.product_name}</div>
-                      <div style={{fontSize:11.5,color:'var(--t4)',marginTop:1}}>{item.brand}</div>
-                    </td>
-                    <td><span style={{color:'var(--gold)',fontWeight:700,fontSize:13.5}}>{item.volume_ml}ml</span></td>
-                    <td><span style={{fontWeight:600,fontSize:14}}>R$ {item.price.toFixed(2).replace('.',',')}</span></td>
-                    <td><button className="btn-ghost" style={{padding:'5px 8px',border:'none',background:'transparent'}} onClick={()=>removeItem(idx)}><Trash2 size={14} style={{color:'var(--danger)'}}/></button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div style={{...glass.card,overflow:'hidden'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,padding:'13px 18px',borderBottom:'1px solid rgba(0,0,0,0.05)',flexWrap:'wrap'}}>
+              <span style={{fontSize:13,fontWeight:600,color:'var(--t2)'}}>Itens ({items.length})</span>
+              <button className="btn-ghost" style={{padding:'6px 11px',fontSize:12}} onClick={updatePrices} tabIndex={-1} title="Recarrega os preços atuais do catálogo">
+                <RefreshCw size={12}/> Atualizar preços
+              </button>
+            </div>
+            <div style={{overflowX:'auto'}}>
+              <table style={{minWidth:400}}>
+                <thead><tr><th style={{width:32}}>#</th><th>Produto</th><th>Volume</th><th>Preço</th><th style={{width:40}}></th></tr></thead>
+                <tbody>
+                  {items.map((item,idx)=>(
+                    <tr key={idx}>
+                      <td style={{color:'var(--t5)',fontSize:12}}>{idx+1}</td>
+                      <td>
+                        <div style={{fontWeight:500,fontSize:13.5}}>{item.product_name}</div>
+                        <div style={{fontSize:11.5,color:'var(--t4)',marginTop:1}}>{item.brand}</div>
+                      </td>
+                      <td><span style={{color:'var(--gold)',fontWeight:700,fontSize:13.5}}>{item.volume_ml}ml</span></td>
+                      <td><span style={{fontWeight:600,fontSize:14}}>R$ {item.price.toFixed(2).replace('.',',')}</span></td>
+                      <td><button className="btn-ghost" style={{padding:'5px 8px',border:'none',background:'transparent'}} onClick={()=>removeItem(idx)} tabIndex={-1}><Trash2 size={14} style={{color:'var(--danger)'}}/></button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         ) : (
           <div style={{textAlign:'center',padding:'32px 20px',color:'var(--t4)'}}>
@@ -264,6 +407,7 @@ export default function OrcamentoPage() {
           </div>
         )}
 
+        {/* Resumo / coluna direita */}
         <div style={{...glass.card,padding:22}}>
           <h3 style={{marginBottom:18}}>Resumo</h3>
 
@@ -279,17 +423,42 @@ export default function OrcamentoPage() {
             <div style={{fontFamily:'var(--font-display)',fontSize:20,color:'var(--t2)',fontWeight:400}}>R$ {subtotal.toFixed(2).replace('.',',')}</div>
           </div>
 
+          {/* Frete */}
           <div style={{...glass.card,padding:14,marginBottom:14,background:'rgba(0,0,0,0.025)',boxShadow:'none',borderColor:'var(--b2)'}}>
             <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:12}}>
               <Truck size={13} style={{color:'var(--t3)'}} strokeWidth={2}/>
               <span style={{fontSize:11,fontWeight:700,letterSpacing:'0.07em',textTransform:'uppercase',color:'var(--t3)'}}>Frete</span>
             </div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}} className="frete-grid">
-              <div><label className="label">Transportadora</label><input style={{...glass.input}} placeholder="Ex: Correios…" value={freteTransp} onChange={e=>setFreteTransp(e.target.value)}/></div>
-              <div><label className="label">Valor (R$)</label><input type="number" style={{...glass.input}} placeholder="0,00" step="0.01" min="0" value={freteValor} onChange={e=>setFreteValor(e.target.value)}/></div>
+              <div>
+                <label className="label">Transportadora</label>
+                <input
+                  ref={freteTranspRef}
+                  style={{...glass.input}}
+                  placeholder="Ex: Correios…"
+                  value={freteTransp}
+                  onChange={e=>setFreteTransp(e.target.value)}
+                  onKeyDown={handleFreteTranspKey}
+                />
+              </div>
+              <div>
+                <label className="label">Valor (R$)</label>
+                <input
+                  ref={freteValorRef}
+                  type="number"
+                  style={{...glass.input}}
+                  placeholder="0,00"
+                  step="0.01"
+                  min="0"
+                  value={freteValor}
+                  onChange={e=>setFreteValor(e.target.value)}
+                  onKeyDown={handleFreteValorKey}
+                />
+              </div>
             </div>
           </div>
 
+          {/* Desconto */}
           <div style={{...glass.card,padding:14,marginBottom:14,background:'rgba(0,0,0,0.025)',boxShadow:'none',borderColor:'var(--b2)'}}>
             <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:12}}>
               <Tag size={13} style={{color:'var(--t3)'}} strokeWidth={2}/>
@@ -298,16 +467,31 @@ export default function OrcamentoPage() {
             <div style={{display:'grid',gridTemplateColumns:'auto 1fr',gap:10,alignItems:'end'}} className="desconto-grid">
               <div>
                 <label className="label">Tipo</label>
-                <select style={{...glass.input,width:'auto'}} value={descontoTipo} onChange={e=>setDescontoTipo(e.target.value as 'reais'|'percent')}>
+                <select
+                  ref={descontoTipoRef}
+                  style={{...glass.input,width:'auto'}}
+                  value={descontoTipo}
+                  onChange={e=>setDescontoTipo(e.target.value as 'reais'|'percent')}
+                  onKeyDown={handleDescontoTipoKey}
+                >
                   <option value="reais">R$ (valor fixo)</option>
                   <option value="percent">% (percentual)</option>
                 </select>
               </div>
               <div>
                 <label className="label">{descontoTipo==='reais'?'Valor (R$)':'Percentual (%)'}</label>
-                <input type="number" style={{...glass.input}} placeholder={descontoTipo==='reais'?'0,00':'0'}
-                  step={descontoTipo==='reais'?'0.01':'1'} min="0" max={descontoTipo==='percent'?'100':undefined}
-                  value={descontoValor} onChange={e=>setDescontoValor(e.target.value)}/>
+                <input
+                  ref={descontoValorRef}
+                  type="number"
+                  style={{...glass.input}}
+                  placeholder={descontoTipo==='reais'?'0,00':'0'}
+                  step={descontoTipo==='reais'?'0.01':'1'}
+                  min="0"
+                  max={descontoTipo==='percent'?'100':undefined}
+                  value={descontoValor}
+                  onChange={e=>setDescontoValor(e.target.value)}
+                  onKeyDown={handleDescontoValorKey}
+                />
               </div>
             </div>
             {desconto>0&&(
@@ -317,17 +501,54 @@ export default function OrcamentoPage() {
             )}
           </div>
 
+          {/* Total */}
           <div style={{background:'var(--gold-bg)',border:'1px solid var(--gold-border)',borderRadius:14,padding:'14px 18px',marginBottom:16,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <div style={{fontSize:11,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',color:'var(--gold)'}}>Total</div>
             <div style={{fontFamily:'var(--font-display)',fontSize:28,color:'var(--gold)',fontWeight:300}}>R$ {total.toFixed(2).replace('.',',')}</div>
           </div>
 
+          {/* Observação */}
           <div style={{marginBottom:16}}>
             <label className="label">Observação (opcional)</label>
-            <textarea style={{...glass.input,resize:'vertical',fontFamily:'var(--font-ui)'}} rows={3} placeholder="Ex: válido por 7 dias…" value={note} onChange={e=>setNote(e.target.value)}/>
+            <textarea
+              ref={noteRef}
+              style={{...glass.input,resize:'vertical',fontFamily:'var(--font-ui)'}}
+              rows={3}
+              placeholder="Ex: válido por 7 dias…"
+              value={note}
+              onChange={e=>setNote(e.target.value)}
+              onKeyDown={handleNoteKey}
+            />
           </div>
 
-          <button className="btn-gold" onClick={generatePDF} disabled={items.length===0||!clientName||generating} style={{width:'100%',padding:'13px 20px',fontSize:14}}>
+          {/* Mensagem de salvamento */}
+          {saveMsg.text && (
+            <div style={{marginBottom:12,fontSize:12.5,fontWeight:500,borderRadius:10,padding:'8px 12px',lineHeight:1.4,
+              color:saveMsg.ok?'var(--success-dark)':'var(--danger)',
+              background:saveMsg.ok?'var(--success-bg)':'var(--danger-bg)',
+              border:`1px solid ${saveMsg.ok?'var(--success-border)':'var(--danger-border)'}`}}>
+              {saveMsg.text}
+            </div>
+          )}
+
+          {/* Botão Salvar */}
+          <button
+            className="btn-outline"
+            onClick={saveQuote}
+            disabled={items.length===0||!clientName||saving}
+            style={{width:'100%',padding:'12px 20px',marginBottom:10,justifyContent:'center',opacity:(items.length===0||!clientName||saving)?0.45:1}}
+          >
+            <Save size={15}/> {saving?'Salvando…':(quoteId?'Atualizar orçamento':'Salvar orçamento')}
+          </button>
+
+          {/* Botão PDF */}
+          <button
+            ref={pdfBtnRef}
+            className="btn-gold"
+            onClick={generatePDF}
+            disabled={items.length===0||!clientName||generating}
+            style={{width:'100%',padding:'13px 20px',fontSize:14}}
+          >
             <FileText size={15}/> {generating?'Gerando PDF…':'Gerar PDF'}
           </button>
           {(!clientName||items.length===0)&&(

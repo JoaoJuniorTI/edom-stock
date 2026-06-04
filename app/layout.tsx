@@ -2,7 +2,7 @@
 import './globals.css'
 import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, Package, BarChart2, FileText, ClipboardList, RefreshCw, ChevronLeft, ChevronRight, Loader2, Menu, X } from 'lucide-react'
+import { LayoutDashboard, Package, BarChart2, FileText, ClipboardList, RefreshCw, ChevronLeft, ChevronRight, Loader2, Menu, X, Archive } from 'lucide-react'
 import { glass } from '@/lib/styles'
 
 const nav = [

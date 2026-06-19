@@ -139,12 +139,40 @@ export async function generateQuotePDF(data: QuotePdfData, preOpenedWindow?: Win
     `
     document.body.appendChild(container)
 
+    // ── Medir pontos de corte seguros ANTES de capturar o canvas ──
+    // Coletamos o topo de cada <tr> e de cada bloco-filho direto do
+    // container principal (header, card do cliente, total, nota, footer).
+    // Assim nunca cortamos no meio de uma linha.
+    const contentEl = container.firstElementChild as HTMLElement
+    const contentRect = contentEl.getBoundingClientRect()
+
+    const safeBreaks = new Set<number>()
+    safeBreaks.add(0) // topo
+
+    // Topo de cada <tr> (thead + tbody)
+    contentEl.querySelectorAll('tr').forEach(row => {
+      safeBreaks.add(row.getBoundingClientRect().top - contentRect.top)
+    })
+
+    // Topo e base de cada bloco-filho direto (header, card, tabela, total, nota, footer)
+    Array.from(contentEl.children).forEach(child => {
+      const r = child.getBoundingClientRect()
+      safeBreaks.add(r.top - contentRect.top)
+      safeBreaks.add(r.bottom - contentRect.top)
+    })
+
+    // Base total do conteúdo
+    safeBreaks.add(contentEl.offsetHeight)
+
+    const sortedBreaks = Array.from(safeBreaks).sort((a, b) => a - b)
+
+    // ── Capturar canvas ──
     const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
       import('html2canvas'),
       import('jspdf'),
     ])
 
-    const canvas = await html2canvas(container.firstElementChild as HTMLElement, {
+    const canvas = await html2canvas(contentEl, {
       scale: 2,
       useCORS: true,
       backgroundColor: '#ffffff',
@@ -153,23 +181,59 @@ export async function generateQuotePDF(data: QuotePdfData, preOpenedWindow?: Win
 
     document.body.removeChild(container)
 
-    const imgData = canvas.toDataURL('image/jpeg', 0.95)
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    // ── Converter breakpoints de DOM px → canvas px ──
+    const canvasScale = canvas.width / contentEl.offsetWidth
+    const scaledBreaks = sortedBreaks.map(bp => Math.round(bp * canvasScale))
 
+    // ── Montar PDF com corte inteligente ──
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
     const pageW = pdf.internal.pageSize.getWidth()
     const pageH = pdf.internal.pageSize.getHeight()
-    const imgW  = pageW
-    const imgH  = (canvas.height * pageW) / canvas.width
+    const pxPerMm = canvas.width / pageW
+    const pageH_px = Math.floor(pageH * pxPerMm)
 
-    if (imgH <= pageH) {
-      pdf.addImage(imgData, 'JPEG', 0, 0, imgW, imgH)
-    } else {
-      let y = 0
-      while (y < imgH) {
-        pdf.addImage(imgData, 'JPEG', 0, -y, imgW, imgH)
-        y += pageH
-        if (y < imgH) pdf.addPage()
+    let currentY = 0
+    let pageNum = 0
+
+    while (currentY < canvas.height) {
+      const maxY = currentY + pageH_px
+
+      let cutY: number
+      if (maxY >= canvas.height) {
+        // Conteúdo restante cabe na página
+        cutY = canvas.height
+      } else {
+        // Encontrar o maior breakpoint que cabe na página
+        let bestBreak = currentY
+        for (const bp of scaledBreaks) {
+          if (bp <= currentY) continue
+          if (bp <= maxY) bestBreak = bp
+          if (bp > maxY) break
+        }
+        // Se não encontrou nenhum breakpoint (edge case), corta no limite
+        cutY = bestBreak > currentY ? bestBreak : maxY
       }
+
+      const sliceH = cutY - currentY
+      if (sliceH <= 0) break
+
+      // Criar sub-canvas apenas com a fatia desta página
+      const pageCanvas = document.createElement('canvas')
+      pageCanvas.width = canvas.width
+      pageCanvas.height = sliceH
+      const ctx = pageCanvas.getContext('2d')!
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height)
+      ctx.drawImage(canvas, 0, currentY, canvas.width, sliceH, 0, 0, canvas.width, sliceH)
+
+      const imgData = pageCanvas.toDataURL('image/jpeg', 0.95)
+      const imgH_mm = sliceH / pxPerMm
+
+      if (pageNum > 0) pdf.addPage()
+      pdf.addImage(imgData, 'JPEG', 0, 0, pageW, imgH_mm)
+
+      currentY = cutY
+      pageNum++
     }
 
     const fileName = `orcamento-${data.client_name.toLowerCase().replace(/\s+/g, '-')}-${data.number}.pdf`

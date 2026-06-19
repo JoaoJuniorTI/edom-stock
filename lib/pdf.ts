@@ -139,102 +139,93 @@ export async function generateQuotePDF(data: QuotePdfData, preOpenedWindow?: Win
     `
     document.body.appendChild(container)
 
-    // ── Medir pontos de corte seguros ANTES de capturar o canvas ──
-    // Coletamos o topo de cada <tr> e de cada bloco-filho direto do
-    // container principal (header, card do cliente, total, nota, footer).
-    // Assim nunca cortamos no meio de uma linha.
     const contentEl = container.firstElementChild as HTMLElement
-    const contentRect = contentEl.getBoundingClientRect()
+
+    // Forçar reflow antes de medir
+    void contentEl.offsetHeight
+
+    // ── Medir pontos de corte seguros (em DOM pixels) ──
+    const contentTop = contentEl.getBoundingClientRect().top
+    const contentWidth = contentEl.offsetWidth
+    const contentHeight = contentEl.offsetHeight
+
+    // Altura de uma página A4 na mesma escala DOM
+    // A4 = 210mm × 297mm → ratio = 297/210
+    const a4PageH = Math.floor(contentWidth * (297 / 210))
 
     const safeBreaks = new Set<number>()
-    safeBreaks.add(0) // topo
+    safeBreaks.add(0)
 
-    // Topo de cada <tr> (thead + tbody)
+    // Topo de cada <tr> (entre um tr e o anterior é sempre seguro cortar)
     contentEl.querySelectorAll('tr').forEach(row => {
-      safeBreaks.add(row.getBoundingClientRect().top - contentRect.top)
+      safeBreaks.add(Math.round(row.getBoundingClientRect().top - contentTop))
     })
 
-    // Topo e base de cada bloco-filho direto (header, card, tabela, total, nota, footer)
+    // Bordas de cada bloco-filho direto (header, card, tabela, total, nota, footer)
     Array.from(contentEl.children).forEach(child => {
       const r = child.getBoundingClientRect()
-      safeBreaks.add(r.top - contentRect.top)
-      safeBreaks.add(r.bottom - contentRect.top)
+      safeBreaks.add(Math.round(r.top - contentTop))
+      safeBreaks.add(Math.round(r.bottom - contentTop))
     })
 
-    // Base total do conteúdo
-    safeBreaks.add(contentEl.offsetHeight)
+    safeBreaks.add(contentHeight)
 
     const sortedBreaks = Array.from(safeBreaks).sort((a, b) => a - b)
 
-    // ── Capturar canvas ──
+    // ── Calcular quais fatias de conteúdo vão em cada página ──
+    const pages: { y: number; h: number }[] = []
+    let curY = 0
+    while (curY < contentHeight) {
+      const maxY = curY + a4PageH
+      if (maxY >= contentHeight) {
+        pages.push({ y: curY, h: contentHeight - curY })
+        break
+      }
+      // Maior breakpoint que cabe na página
+      let best = curY
+      for (const bp of sortedBreaks) {
+        if (bp <= curY) continue
+        if (bp <= maxY) best = bp
+        if (bp > maxY) break
+      }
+      const cutY = best > curY ? best : maxY
+      pages.push({ y: curY, h: cutY - curY })
+      curY = cutY
+    }
+
+    // ── Importar libs ──
     const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
       import('html2canvas'),
       import('jspdf'),
     ])
 
-    const canvas = await html2canvas(contentEl, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: '#ffffff',
-      logging: false,
-    })
-
-    document.body.removeChild(container)
-
-    // ── Converter breakpoints de DOM px → canvas px ──
-    const canvasScale = canvas.width / contentEl.offsetWidth
-    const scaledBreaks = sortedBreaks.map(bp => Math.round(bp * canvasScale))
-
-    // ── Montar PDF com corte inteligente ──
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
     const pageW = pdf.internal.pageSize.getWidth()
-    const pageH = pdf.internal.pageSize.getHeight()
-    const pxPerMm = canvas.width / pageW
-    const pageH_px = Math.floor(pageH * pxPerMm)
 
-    let currentY = 0
-    let pageNum = 0
+    // ── Renderizar cada página usando o crop nativo do html2canvas ──
+    // Cada chamada usa y/height pra capturar só a fatia da página,
+    // sem conversão manual de coordenadas para canvas pixels.
+    for (let i = 0; i < pages.length; i++) {
+      const { y, h } = pages[i]
 
-    while (currentY < canvas.height) {
-      const maxY = currentY + pageH_px
-
-      let cutY: number
-      if (maxY >= canvas.height) {
-        // Conteúdo restante cabe na página
-        cutY = canvas.height
-      } else {
-        // Encontrar o maior breakpoint que cabe na página
-        let bestBreak = currentY
-        for (const bp of scaledBreaks) {
-          if (bp <= currentY) continue
-          if (bp <= maxY) bestBreak = bp
-          if (bp > maxY) break
-        }
-        // Se não encontrou nenhum breakpoint (edge case), corta no limite
-        cutY = bestBreak > currentY ? bestBreak : maxY
-      }
-
-      const sliceH = cutY - currentY
-      if (sliceH <= 0) break
-
-      // Criar sub-canvas apenas com a fatia desta página
-      const pageCanvas = document.createElement('canvas')
-      pageCanvas.width = canvas.width
-      pageCanvas.height = sliceH
-      const ctx = pageCanvas.getContext('2d')!
-      ctx.fillStyle = '#ffffff'
-      ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height)
-      ctx.drawImage(canvas, 0, currentY, canvas.width, sliceH, 0, 0, canvas.width, sliceH)
+      const pageCanvas = await html2canvas(contentEl, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        y: y,
+        height: h,
+        width: contentWidth,
+      })
 
       const imgData = pageCanvas.toDataURL('image/jpeg', 0.95)
-      const imgH_mm = sliceH / pxPerMm
+      const imgH_mm = h * (pageW / contentWidth)
 
-      if (pageNum > 0) pdf.addPage()
+      if (i > 0) pdf.addPage()
       pdf.addImage(imgData, 'JPEG', 0, 0, pageW, imgH_mm)
-
-      currentY = cutY
-      pageNum++
     }
+
+    document.body.removeChild(container)
 
     const fileName = `orcamento-${data.client_name.toLowerCase().replace(/\s+/g, '-')}-${data.number}.pdf`
 

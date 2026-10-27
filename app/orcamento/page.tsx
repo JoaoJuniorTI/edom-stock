@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef, KeyboardEvent } from 'react'
 import { glass } from '@/lib/styles'
 import { generateQuotePDF, openQuotePDFWindow } from '@/lib/pdf'
-import { Plus, Trash2, FileText, Search, User, Truck, Tag, RefreshCw, FilePlus } from 'lucide-react'
+import { Plus, Trash2, FileText, Search, User, Truck, Tag, RefreshCw, FilePlus, Upload } from 'lucide-react'
 
 interface Product { id:number;name:string;brand:string;volumes:{volume_ml:number;price:number}[] }
 interface QuoteItem { product_id:number;product_name:string;brand:string;volume_ml:number;price:number }
@@ -30,6 +30,9 @@ export default function OrcamentoPage() {
   const [quoteCreatedAt,setQuoteCreatedAt] = useState<string|null>(null)
   const [saving,setSaving]               = useState(false)
   const [saveMsg,setSaveMsg]             = useState<{text:string;ok:boolean}>({text:'',ok:true})
+  const [importing,setImporting]         = useState(false)
+  const [importMsg,setImportMsg]         = useState<{text:string;ok:boolean}>({text:'',ok:true})
+  const importInputRef = useRef<HTMLInputElement>(null)
 
   const clientNameRef    = useRef<HTMLInputElement>(null)
   const clientContactRef = useRef<HTMLInputElement>(null)
@@ -270,13 +273,42 @@ export default function OrcamentoPage() {
     setTimeout(()=>setSaveMsg({text:'',ok:true}), 4000)
   }
 
+  // Importa o PDF "Seleção de perfumes" do edom-catalog e adiciona os itens ao orçamento
+  async function importCatalogPDF(file: File){
+    setImporting(true)
+    setImportMsg({text:'',ok:true})
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const d = await fetch('/api/quotes/import',{method:'POST',body:fd}).then(r=>r.json())
+      if(!d.items){
+        setImportMsg({text:d.error||'Erro ao importar o PDF', ok:false})
+        return
+      }
+      const imported: QuoteItem[] = d.items
+      setItems(prev=>[...prev,...imported])
+      const sum = imported.reduce((s,i)=>s+i.price,0)
+      // O catálogo soma preços promocionais sem arredondar, então ignora diferença de centavos
+      const totalOk = d.total==null || Math.abs(sum-Number(d.total))<0.05
+      let text = `${imported.length} ${imported.length===1?'item importado':'itens importados'} do PDF.`
+      if(!totalOk) text += ` Atenção: a soma (R$ ${sum.toFixed(2).replace('.',',')}) difere do total do PDF (R$ ${Number(d.total).toFixed(2).replace('.',',')}).`
+      if(d.unmatched?.length) text += ` Não encontrados no estoque: ${d.unmatched.join(', ')}.`
+      setImportMsg({text, ok: totalOk && !d.unmatched?.length})
+    } catch {
+      setImportMsg({text:'Erro de conexão', ok:false})
+    } finally {
+      setImporting(false)
+      if(importInputRef.current) importInputRef.current.value = ''
+    }
+  }
+
   // Limpa tudo para começar um novo orçamento
   function newQuote(){
     setQuoteId(null); setQuoteNumber(null); setQuoteCreatedAt(null)
     setClientName(''); setClientContact(''); setItems([])
     setFreteValor(''); setFreteTransp(''); setDescontoTipo('reais'); setDescontoValor(''); setNote('')
     setSearch(''); setSelProduct(null); setSelVolume(''); setSuggIdx(-1)
-    setSaveMsg({text:'',ok:true})
+    setSaveMsg({text:'',ok:true}); setImportMsg({text:'',ok:true})
     if(typeof window!=='undefined' && window.history) window.history.replaceState(null,'','/orcamento')
   }
 
@@ -291,12 +323,33 @@ export default function OrcamentoPage() {
             {quoteNumber ? `Editando ${quoteNumber}` : 'Monte o orçamento e gere o PDF para salvar automaticamente'}
           </p>
         </div>
-        {quoteId && (
-          <button className="btn-ghost" onClick={newQuote}>
-            <FilePlus size={14}/> Novo orçamento
+        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/pdf,.pdf"
+            style={{display:'none'}}
+            onChange={e=>{const f=e.target.files?.[0]; if(f) importCatalogPDF(f)}}
+          />
+          <button className="btn-ghost" onClick={()=>importInputRef.current?.click()} disabled={importing} title="Importa o PDF de seleção gerado no catálogo">
+            <Upload size={14}/> {importing?'Importando…':'Importar PDF do catálogo'}
           </button>
-        )}
+          {quoteId && (
+            <button className="btn-ghost" onClick={newQuote}>
+              <FilePlus size={14}/> Novo orçamento
+            </button>
+          )}
+        </div>
       </div>
+
+      {importMsg.text && (
+        <div style={{marginBottom:18,fontSize:12.5,fontWeight:500,borderRadius:10,padding:'8px 12px',lineHeight:1.4,
+          color:importMsg.ok?'var(--success-dark)':'var(--danger)',
+          background:importMsg.ok?'var(--success-bg)':'var(--danger-bg)',
+          border:`1px solid ${importMsg.ok?'var(--success-border)':'var(--danger-border)'}`}}>
+          {importMsg.text}
+        </div>
+      )}
 
       <div style={{display:'grid',gridTemplateColumns:'1fr',gap:18}} className="orcamento-grid">
 
